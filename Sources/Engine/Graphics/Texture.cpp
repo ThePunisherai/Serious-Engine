@@ -172,8 +172,10 @@ extern void UpdateTextureSettings(void)
   tex_iNormalQuality    = TS.ts_iNormQualityO*10 + TS.ts_iNormQualityA;
   tex_iAnimationQuality = TS.ts_iAnimQualityO*10 + TS.ts_iAnimQualityA;
   // clamp texture size
-  tex_iNormalSize    = Clamp( tex_iNormalSize,    5L, 11L);
-  tex_iAnimationSize = Clamp( tex_iAnimationSize, 5L,  9L);
+  // Upper bounds follow MAX_TEXTURE_DIMENSION: the setting is log2 of the texture area halved,
+  // so 12 permits a 4096x4096 texture and 10 a 1024x1024 animated one.
+  tex_iNormalSize    = Clamp( tex_iNormalSize,    5L, 12L);
+  tex_iAnimationSize = Clamp( tex_iAnimationSize, 5L, 10L);
   TS.ts_pixNormSize = 1L<<(tex_iNormalSize   *2);
   TS.ts_pixAnimSize = 1L<<(tex_iAnimationSize*2);
 
@@ -292,15 +294,25 @@ void CTextureData::Create_t( const CImageInfo *pII, MEX mexWanted, INDEX ctFineM
   PIX pixSizeV = pII->ii_Height;
 
   // check maximum supported texture dimension
-  if( pixSizeU>MAX_MEX || pixSizeV>MAX_MEX) throw( TRANS("At least one of texture dimensions is too large."));
+  if( pixSizeU>MAX_TEXTURE_DIMENSION || pixSizeV>MAX_TEXTURE_DIMENSION) {
+    ThrowF_t( TRANS("Texture is %dx%d pixels; the maximum supported dimension is %d."),
+              pixSizeU, pixSizeV, MAX_TEXTURE_DIMENSION);
+  }
 
   // determine physical (maximum) number of mip-levels
   INDEX iSizeULog2 = FastLog2( pixSizeU);
   INDEX iSizeVLog2 = FastLog2( pixSizeV);
   ASSERT( (1UL<<iSizeULog2)==pixSizeU && (1UL<<iSizeVLog2)==pixSizeV);
 
-  // dimension in mexels must not be smaller than the one in pixels
-  ASSERT( pixSizeU<=mexWanted);
+  // The first-mip index is log2 of the mexel-to-pixel ratio, so a texture cannot carry more than
+  // one texel per mexel. A meter being MAX_MEX mexels, that caps texel density at MAX_MEX texels
+  // per meter, and higher-resolution art has to be declared proportionally wider in the world.
+  // This used to be an ASSERT, which compiles out in release builds and left FastLog2() reading a
+  // zero ratio -- a garbage mip level rather than a diagnosable error.
+  if( pixSizeU>mexWanted) {
+    ThrowF_t( TRANS("Texture is %d pixels wide but spans only %d mexels (%.2f meters). A texture cannot hold more than one texel per mexel; declare it wider or use a lower resolution."),
+              pixSizeU, mexWanted, METERS_MEX(mexWanted));
+  }
 
   // determine mip index from mex size
   td_iFirstMipLevel = FastLog2( mexWanted/pixSizeU);

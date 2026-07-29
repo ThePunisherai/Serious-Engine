@@ -268,10 +268,10 @@ ENGINE_API void SE_InitEngine(CTString strGameID)
 
   CRCT_Init();
 
-  _strEngineBuild.PrintF( TRANS("SeriousEngine Build: %d.%d"), _SE_BUILD_MAJOR, _SE_BUILD_MINOR);
+  _strEngineBuild.PrintF( TRANS("GameStudio Engine Build: %d.%d"), _SE_BUILD_MAJOR, _SE_BUILD_MINOR);
 
   // print basic engine info
-  CPrintF(TRANS("--- Serious Engine Startup ---\n"));
+  CPrintF(TRANS("--- GameStudio Engine Startup ---\n"));
   CPrintF("  %s\n\n", _strEngineBuild);
 
   // print info on the started application

@@ -84,6 +84,46 @@ re-running the script.
 **not** exported — those formats have eight version variants with compressed vertex data, and a
 geometry exporter that is subtly wrong is worse than none. Geometry is the next stage.
 
+## Engine-side changes
+
+Modernized artwork is worthless if the engine downsamples it on load, so the engine itself was
+changed too. All of it lives in `Sources/Engine`.
+
+**The texture dimension cap is no longer tied to world scale.** `CTextureData::Create_t` rejected
+anything wider than `MAX_MEX`, which is not a resolution limit at all — it is the world-space
+scale, i.e. how many mexels make up a meter. Raising it to allow bigger textures would have
+silently rescaled every existing world. The two are now separate constants
+(`MAX_TEXTURE_DIMENSION`, 4096), so world geometry is untouched and textures can be four times
+larger than before.
+
+**A latent release-build bug is fixed.** The same function guarded its mexel-to-pixel ratio with
+`ASSERT(pixSizeU<=mexWanted)`. Assertions compile out in release builds, so an over-dense texture
+left `FastLog2()` reading a zero ratio and produced a garbage mip level instead of an error. It is
+now a real thrown error with a message that says what to do about it.
+
+That guard also describes a constraint worth knowing before you upscale anything: **a texture
+cannot hold more than one texel per mexel**, and a meter is `MAX_MEX` (1024) mexels. So the ceiling
+is 1024 texels per meter of world surface. A 4096-pixel texture is fine — it just has to be
+declared at least four meters wide. Upscaling art 4× while keeping its old world size will not
+work; the extra resolution has to buy you a physically larger surface.
+
+**Defaults now target current hardware** rather than the 2001 baseline: 32-bit texture quality,
+trilinear filtering, 16× anisotropic filtering, and a texture budget of 2048×2048 (512×512 per
+animated frame). Anisotropy is a request, not a demand — `gfxSetTextureFiltering()` already clamps
+it to whatever the driver reports. These are all persistent user settings, so existing
+configurations keep whatever they already had.
+
+Stock game content is 512 pixels or smaller, so none of this changes how the original games look;
+it only stops the engine from throwing away resolution that modernized art actually has.
+
+## Rebranding
+
+The engine startup banner, the editor and the modeler now identify as **GameStudio Engine**,
+**GameStudio Editor** and **GameStudio Modeler**. Functional identifiers are deliberately left
+alone — `SE_InitEngine("SeriousEditor")` is compared against that exact string to set
+`_bWorldEditorApp`, so renaming it would change behaviour rather than branding. Croteam's copyright
+notices and Serious Engine licensing contacts stay exactly where they are.
+
 ## MCP server
 
 ```

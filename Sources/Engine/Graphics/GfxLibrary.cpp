@@ -113,10 +113,14 @@ extern const FLOAT *pfSinTable = afSinTable +256;
 extern const FLOAT *pfCosTable = afSinTable +256+64;
 
 // texture/shadow control
-extern INDEX tex_iNormalQuality    = 00;      // 0=optimal, 1=16bit, 2=32bit, 3=compressed (1st num=opaque tex, 2nd=alpha tex)
-extern INDEX tex_iAnimationQuality = 11;      // 0=optimal, 1=16bit, 2=32bit, 3=compressed (1st num=opaque tex, 2nd=alpha tex)
-extern INDEX tex_iNormalSize     = 9;         // log2 of texture area /2 for max texture size allowed
-extern INDEX tex_iAnimationSize  = 7; 
+// Defaults below target current hardware rather than the 2001 baseline: full 32-bit texture
+// quality, and a texture budget large enough that high-resolution art is uploaded at its own
+// resolution instead of being mipped down on load. All of these remain persistent user settings,
+// so an existing configuration keeps whatever it already had.
+extern INDEX tex_iNormalQuality    = 22;      // 0=optimal, 1=16bit, 2=32bit, 3=compressed (1st num=opaque tex, 2nd=alpha tex)
+extern INDEX tex_iAnimationQuality = 22;      // 0=optimal, 1=16bit, 2=32bit, 3=compressed (1st num=opaque tex, 2nd=alpha tex)
+extern INDEX tex_iNormalSize     = 11;        // log2 of texture area /2 for max texture size allowed (11 = 2048x2048)
+extern INDEX tex_iAnimationSize  = 9;         // 9 = 512x512 per animated frame
 extern INDEX tex_iEffectSize     = 7; 
 extern INDEX tex_bDynamicMipmaps = FALSE;     // how many mipmaps will be bilineary filtered (0-15)
 extern INDEX tex_iDithering      = 3;         // 0=none, 1-3=low, 4-7=medium, 8-10=high
@@ -171,8 +175,10 @@ extern INDEX d3d_iFinish = 0;
 
 // API common controls
 extern INDEX gap_iUseTextureUnits = 4;
-extern INDEX gap_iTextureFiltering  = 21;       // bilinear by default
-extern INDEX gap_iTextureAnisotropy = 1;        // 1=isotropic, 2=min anisotropy
+extern INDEX gap_iTextureFiltering  = 22;       // trilinear by default
+// Requested degree, not the effective one: gfxSetTextureFiltering() clamps this down to whatever
+// the driver reports it supports, so asking for 16 costs nothing on hardware that has less.
+extern INDEX gap_iTextureAnisotropy = 16;       // 1=isotropic, 2=min anisotropy
 extern FLOAT gap_fTextureLODBias    = 0.0f;
 extern INDEX gap_bOptimizeStateChanges = TRUE;
 extern INDEX gap_iOptimizeDepthReads = 1;        // 0=imediately, 1=after frame, 2=every 0.1 seconds

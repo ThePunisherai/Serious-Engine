@@ -168,6 +168,16 @@ typedef ULONG   COLOR;  // color is always in 32 bit true-color format
 #define METERS_MEX(mex)    ((FLOAT)(((FLOAT)mex)/MAX_MEX))
 #define MEX_METERS(meters) ((MEX)(meters*MAX_MEX))
 
+// Largest texture dimension, in pixels, that may be imported.
+// This used to be MAX_MEX, which conflated two unrelated things: MAX_MEX is the world-space
+// scale (one mexel is 1/MAX_MEX of a meter, see the macros above), so raising it to allow
+// bigger textures would silently rescale every existing world. The two are separate constants
+// now, leaving world geometry untouched while textures can go up to 4096.
+// The runtime clamps further down to whatever the driver actually reports as its maximum
+// texture size, so oversized art degrades gracefully instead of failing to upload.
+#define MAX_TEXTURE_DIMENSION_LOG2 12
+#define MAX_TEXTURE_DIMENSION      (1L<<MAX_TEXTURE_DIMENSION_LOG2)
+
 #define ARRAYCOUNT(array) (sizeof(array)/sizeof((array)[0]))
 
 // sound volume constants
