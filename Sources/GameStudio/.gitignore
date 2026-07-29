@@ -1,0 +1,4 @@
+# .NET build output for the GameStudio tooling
+bin/
+obj/
+*.user

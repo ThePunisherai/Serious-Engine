@@ -1,0 +1,505 @@
+<Window x:Class="GameStudio.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="GameStudio Engine" Height="820" Width="1320"
+        MinHeight="620" MinWidth="1020"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Surface0Brush}">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="58"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="28"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============================ Toolbar ============================ -->
+        <Border Grid.Row="0" Background="{StaticResource ChromeGradientBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="14,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Brand -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Grid Width="30" Height="30" VerticalAlignment="Center" Effect="{StaticResource AccentGlowSoft}">
+                        <Viewbox Width="30" Height="30">
+                            <Canvas Width="100" Height="94">
+                                <Path Data="{StaticResource PunisherLogoSilhouette}" Fill="{StaticResource PunisherLogoGradient}"/>
+                                <Path Data="{StaticResource PunisherLogoEyeL}" Fill="#12040A"/>
+                                <Path Data="{StaticResource PunisherLogoEyeR}" Fill="#12040A"/>
+                                <Path Data="{StaticResource PunisherLogoBrowL}" Fill="#12040A"/>
+                                <Path Data="{StaticResource PunisherLogoBrowR}" Fill="#12040A"/>
+                                <Path Data="{StaticResource PunisherLogoNose}" Fill="#12040A"/>
+                                <Path Data="{StaticResource PunisherLogoFangL}" Fill="{StaticResource PunisherLogoGradient}"/>
+                                <Path Data="{StaticResource PunisherLogoFangM}" Fill="{StaticResource PunisherLogoGradient}"/>
+                                <Path Data="{StaticResource PunisherLogoFangR}" Fill="{StaticResource PunisherLogoGradient}"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Grid>
+                    <TextBlock Text="GameStudio" FontSize="17" FontWeight="Bold" Margin="11,0,0,0"
+                               VerticalAlignment="Center" Foreground="{StaticResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Engine" FontSize="17" FontWeight="Light" Margin="5,0,0,0"
+                               VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <Border Style="{StaticResource BadgeAccent}" Margin="10,0,0,0">
+                        <TextBlock x:Name="txtVersion" Text="v1.0" Style="{StaticResource BadgeText}" Foreground="White"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- Primary actions -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left"
+                            VerticalAlignment="Center" Margin="26,0,0,0">
+                    <Button x:Name="btnOpenEngine" Style="{StaticResource BtnAccent}" Click="OnOpenEngineFolder"
+                            ToolTip="Pick the folder that contains the engine's .gro archives">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x1F4C2;" Margin="0,0,7,0"/>
+                            <TextBlock Text="Open Engine Folder"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="btnOpenArchive" Style="{StaticResource BtnBase}" Margin="9,0,0,0" Click="OnOpenArchive">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="&#x1F4E6;" Margin="0,0,7,0"/>
+                            <TextBlock Text="Open .gro"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Status cluster -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Style="{StaticResource Badge}" Cursor="Hand" MouseLeftButtonUp="OnMcpBadgeClicked"
+                            ToolTip="Whether the GameStudio MCP server is running and reachable">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse x:Name="mcpStatusDot" Style="{StaticResource StatusDot}"
+                                     Fill="{StaticResource TextMutedBrush}" Margin="0,0,7,0"/>
+                            <TextBlock x:Name="txtMcpStatus" Text="MCP: checking&#x2026;" Style="{StaticResource BadgeText}"
+                                       FontWeight="Normal" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============================ Body ============================ -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="78"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Navigation rail -->
+            <Border Grid.Column="0" Background="{StaticResource Surface1Brush}"
+                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+                <StackPanel Margin="0,10,0,0">
+                    <RadioButton x:Name="navDashboard" Style="{StaticResource NavItem}" Tag="&#x1F3E0;"
+                                 Content="Overview" IsChecked="True" Checked="OnNavChanged"/>
+                    <RadioButton x:Name="navAssets" Style="{StaticResource NavItem}" Tag="&#x1F5C2;"
+                                 Content="Assets" Checked="OnNavChanged"/>
+                    <RadioButton x:Name="navModernize" Style="{StaticResource NavItem}" Tag="&#x2728;"
+                                 Content="Modernize" Checked="OnNavChanged"/>
+                    <RadioButton x:Name="navUnreal" Style="{StaticResource NavItem}" Tag="&#x1F3AE;"
+                                 Content="Unreal" Checked="OnNavChanged"/>
+                    <RadioButton x:Name="navMcp" Style="{StaticResource NavItem}" Tag="&#x1F50C;"
+                                 Content="MCP" Checked="OnNavChanged"/>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Column="1">
+
+                <!-- Overview -->
+                <ScrollViewer x:Name="viewDashboard" VerticalScrollBarVisibility="Auto" Padding="26,22">
+                    <StackPanel MaxWidth="1000" HorizontalAlignment="Left">
+                        <TextBlock Text="Engine overview" Style="{StaticResource H1}"/>
+                        <TextBlock Style="{StaticResource Body}" Margin="0,7,0,20"
+                                   Text="Point GameStudio at a Serious Engine installation to browse its resource archives, modernize the artwork into PBR material sets, and generate an Unreal Engine 5 import package."/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="ENGINE ROOT" Style="{StaticResource SectionLabel}"/>
+                                <TextBlock x:Name="txtEngineRoot" Text="No engine folder selected"
+                                           Style="{StaticResource H2}" TextTrimming="CharacterEllipsis"/>
+                                <ItemsControl x:Name="listArchives" Margin="0,14,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Background="{StaticResource Surface3Brush}" CornerRadius="7"
+                                                    Padding="12,9" Margin="0,0,0,7">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <StackPanel Grid.Column="0">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"
+                                                                   Foreground="{StaticResource TextPrimaryBrush}"/>
+                                                        <TextBlock Text="{Binding Summary}" Style="{StaticResource Caption}" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                    <Button Grid.Column="1" Style="{StaticResource BtnBase}" Content="Browse"
+                                                            Tag="{Binding Path}" Click="OnBrowseArchive"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock x:Name="txtNoArchives" Style="{StaticResource Caption}"
+                                           Text="No .gro archives found yet." Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock Text="WHAT THIS TOOL DOES" Style="{StaticResource SectionLabel}"/>
+                                <TextBlock Style="{StaticResource Body}" Margin="0,0,0,7"
+                                           Text="&#x2022;  Reads .gro archives and decodes both .tex format revisions, including the 16-bit legacy textures."/>
+                                <TextBlock Style="{StaticResource Body}" Margin="0,0,0,7"
+                                           Text="&#x2022;  Upscales artwork in linear light and derives normal, roughness and ambient-occlusion maps."/>
+                                <TextBlock Style="{StaticResource Body}" Margin="0,0,0,7"
+                                           Text="&#x2022;  Generates an Unreal Engine 5 import script that builds a wired material per texture."/>
+                                <TextBlock Style="{StaticResource Body}"
+                                           Text="&#x2022;  Exposes the same pipeline over MCP, so an AI assistant can drive it directly."/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Assets -->
+                <Grid x:Name="viewAssets" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="330" MinWidth="240"/>
+                        <ColumnDefinition Width="4"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Background="{StaticResource Surface1Brush}"
+                            BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Margin="12,12,12,8">
+                                <TextBlock x:Name="txtArchiveName" Text="No archive loaded" Style="{StaticResource H2}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBox x:Name="txtSearch" Margin="0,10,0,0" TextChanged="OnFilterChanged"
+                                         ToolTip="Filter by path"/>
+                                <ComboBox x:Name="cmbKind" Margin="0,8,0,0" SelectionChanged="OnFilterChanged"/>
+                            </StackPanel>
+
+                            <ListBox x:Name="listEntries" Grid.Row="1" SelectionChanged="OnEntrySelected"
+                                     VirtualizingStackPanel.IsVirtualizing="True"
+                                     VirtualizingStackPanel.VirtualizationMode="Recycling">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource Caption}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <TextBlock x:Name="txtEntryCount" Grid.Row="2" Style="{StaticResource Caption}"
+                                       Margin="14,8,14,10"/>
+                        </Grid>
+                    </Border>
+
+                    <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="{StaticResource Surface1Brush}"
+                                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="18,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock x:Name="txtPreviewTitle" Text="No file selected" Style="{StaticResource H2}"/>
+                                    <TextBlock x:Name="txtPreviewDetail" Style="{StaticResource Caption}" Margin="0,3,0,0"/>
+                                </StackPanel>
+                                <Button x:Name="btnExportPng" Grid.Column="1" Style="{StaticResource BtnBase}"
+                                        Content="Export PNG" IsEnabled="False" Click="OnExportPng"/>
+                            </Grid>
+                        </Border>
+
+                        <Grid Grid.Row="1" Background="{StaticResource Surface0Brush}">
+                            <Border x:Name="previewEmpty" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <Viewbox Width="86" Height="86" Opacity="0.30">
+                                        <Canvas Width="100" Height="94">
+                                            <Path Data="{StaticResource PunisherLogoSilhouette}" Fill="{StaticResource PunisherLogoGradient}"/>
+                                            <Path Data="{StaticResource PunisherLogoEyeL}" Fill="#12040A"/>
+                                            <Path Data="{StaticResource PunisherLogoEyeR}" Fill="#12040A"/>
+                                            <Path Data="{StaticResource PunisherLogoNose}" Fill="#12040A"/>
+                                        </Canvas>
+                                    </Viewbox>
+                                    <TextBlock Text="Select a texture to preview it" Style="{StaticResource H2}"
+                                               Margin="0,18,0,0" HorizontalAlignment="Center"/>
+                                    <TextBlock Style="{StaticResource Caption}" HorizontalAlignment="Center" Margin="0,6,0,0"
+                                               Text="Both .tex format revisions decode, including 16-bit legacy textures."/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="previewHost" Visibility="Collapsed" Margin="26">
+                                <Image x:Name="imgPreview" RenderOptions.BitmapScalingMode="NearestNeighbor"
+                                       Stretch="Uniform" StretchDirection="DownOnly"/>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Grid>
+
+                <!-- Modernize -->
+                <ScrollViewer x:Name="viewModernize" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="26,22">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+                        <TextBlock Text="Modernize artwork" Style="{StaticResource H1}"/>
+                        <TextBlock Style="{StaticResource Body}" Margin="0,7,0,20"
+                                   Text="Upscales every texture in linear light and derives a PBR material set from it. The derived maps are an approximation: the originals predate PBR and carry no measured surface data, so treat the result as a strong starting point rather than a finished material."/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="SOURCE" Style="{StaticResource SectionLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtModernSource" Grid.Column="0" IsReadOnly="True"/>
+                                    <Button Grid.Column="1" Style="{StaticResource BtnBase}" Content="Browse&#x2026;"
+                                            Margin="9,0,0,0" Click="OnPickModernizeSource"/>
+                                </Grid>
+
+                                <TextBlock Text="OUTPUT" Style="{StaticResource SectionLabel}" Margin="0,16,0,6"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtModernOutput" Grid.Column="0" IsReadOnly="True"/>
+                                    <Button Grid.Column="1" Style="{StaticResource BtnBase}" Content="Browse&#x2026;"
+                                            Margin="9,0,0,0" Click="OnPickModernizeOutput"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock Text="SETTINGS" Style="{StaticResource SectionLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                        <TextBlock Text="Upscale factor" Style="{StaticResource Caption}" Margin="0,0,0,5"/>
+                                        <ComboBox x:Name="cmbScale"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="Resampling filter" Style="{StaticResource Caption}" Margin="0,0,0,5"/>
+                                        <ComboBox x:Name="cmbFilter"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <CheckBox x:Name="chkPbr" Content="Derive normal, roughness and ambient-occlusion maps"
+                                          IsChecked="True" Margin="0,14,0,0"/>
+                                <CheckBox x:Name="chkHeight" Content="Also emit a height map (for parallax or displacement)"/>
+                                <CheckBox x:Name="chkAllFrames" Content="Write every frame of animated textures"/>
+
+                                <TextBlock Text="EXTERNAL AI UPSCALER (OPTIONAL)" Style="{StaticResource SectionLabel}" Margin="0,18,0,6"/>
+                                <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,7" TextWrapping="Wrap"
+                                           Text="Point this at a realesrgan-ncnn-vulkan style executable for far better results on the low-resolution originals. Left empty, the built-in Lanczos resampler is used."/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtUpscaler" Grid.Column="0"/>
+                                    <Button Grid.Column="1" Style="{StaticResource BtnBase}" Content="Browse&#x2026;"
+                                            Margin="9,0,0,0" Click="OnPickUpscaler"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                            <Button x:Name="btnRunModernize" Style="{StaticResource BtnAccent}" Click="OnRunModernize">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#x2728;" Margin="0,0,7,0"/>
+                                    <TextBlock Text="Run modernization"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="btnCancelModernize" Style="{StaticResource BtnBase}" Content="Cancel"
+                                    Margin="9,0,0,0" IsEnabled="False" Click="OnCancelJob"/>
+                        </StackPanel>
+
+                        <Border x:Name="modernResultCard" Style="{StaticResource Card}" Margin="0,16,0,0" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="LAST RUN" Style="{StaticResource SectionLabel}"/>
+                                <TextBlock x:Name="txtModernResult" Style="{StaticResource Mono}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Unreal -->
+                <ScrollViewer x:Name="viewUnreal" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="26,22">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+                        <TextBlock Text="Export to Unreal Engine 5" Style="{StaticResource H1}"/>
+                        <TextBlock Style="{StaticResource Body}" Margin="0,7,0,20"
+                                   Text="Turns a modernized material set into an Unreal import package: a manifest plus a Python script you run inside the editor. It imports every generated map with the right sRGB and compression settings, then builds a material per texture with base colour, normal, roughness and occlusion wired up."/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="MODERNIZED FOLDER" Style="{StaticResource SectionLabel}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtUnrealSource" Grid.Column="0" IsReadOnly="True"/>
+                                    <Button Grid.Column="1" Style="{StaticResource BtnBase}" Content="Browse&#x2026;"
+                                            Margin="9,0,0,0" Click="OnPickUnrealSource"/>
+                                </Grid>
+                                <TextBlock Style="{StaticResource Caption}" Margin="0,6,0,0"
+                                           Text="Must contain the materials.json written by a modernization run."/>
+
+                                <TextBlock Text="PACKAGE OUTPUT" Style="{StaticResource SectionLabel}" Margin="0,16,0,6"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtUnrealOutput" Grid.Column="0" IsReadOnly="True"/>
+                                    <Button Grid.Column="1" Style="{StaticResource BtnBase}" Content="Browse&#x2026;"
+                                            Margin="9,0,0,0" Click="OnPickUnrealOutput"/>
+                                </Grid>
+
+                                <TextBlock Text="UNREAL CONTENT PATH" Style="{StaticResource SectionLabel}" Margin="0,16,0,6"/>
+                                <TextBox x:Name="txtContentRoot" Text="/Game/SeriousEngine"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Button x:Name="btnRunUnreal" Style="{StaticResource BtnAccent}" Margin="0,18,0,0"
+                                HorizontalAlignment="Left" Click="OnRunUnrealExport">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#x1F3AE;" Margin="0,0,7,0"/>
+                                <TextBlock Text="Generate import package"/>
+                            </StackPanel>
+                        </Button>
+
+                        <Border x:Name="unrealResultCard" Style="{StaticResource Card}" Margin="0,16,0,0" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Text="NEXT STEP" Style="{StaticResource SectionLabel}"/>
+                                <TextBlock x:Name="txtUnrealResult" Style="{StaticResource Mono}" TextWrapping="Wrap"/>
+                                <Button x:Name="btnOpenUnrealFolder" Style="{StaticResource BtnBase}" Content="Open folder"
+                                        Margin="0,12,0,0" HorizontalAlignment="Left" Click="OnOpenUnrealFolder"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- MCP -->
+                <ScrollViewer x:Name="viewMcp" Visibility="Collapsed" VerticalScrollBarVisibility="Auto" Padding="26,22">
+                    <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+                        <TextBlock Text="MCP server" Style="{StaticResource H1}"/>
+                        <TextBlock Style="{StaticResource Body}" Margin="0,7,0,20"
+                                   Text="Exposes this whole pipeline over the Model Context Protocol, so an AI assistant can inspect archives, decode textures, run a modernization pass and generate the Unreal package on your behalf."/>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="STATUS" Style="{StaticResource SectionLabel}"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                    <Ellipse x:Name="mcpPanelDot" Style="{StaticResource StatusDot}" Width="10" Height="10"
+                                             Fill="{StaticResource TextMutedBrush}" Margin="0,0,9,0"/>
+                                    <TextBlock x:Name="txtMcpPanelStatus" Text="Not running" Style="{StaticResource H2}"/>
+                                </StackPanel>
+
+                                <TextBlock Text="WORKSPACE ROOT" Style="{StaticResource SectionLabel}"/>
+                                <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,7" TextWrapping="Wrap"
+                                           Text="Every path the server touches is confined to this folder. Leave it set to your engine folder."/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox x:Name="txtMcpRoot" Grid.Column="0" IsReadOnly="True"/>
+                                    <Button Grid.Column="1" Style="{StaticResource BtnBase}" Content="Browse&#x2026;"
+                                            Margin="9,0,0,0" Click="OnPickMcpRoot"/>
+                                </Grid>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                                    <Button x:Name="btnStartMcp" Style="{StaticResource BtnAccent}" Content="Start server"
+                                            Click="OnStartMcp"/>
+                                    <Button x:Name="btnStopMcp" Style="{StaticResource BtnBase}" Content="Stop"
+                                            Margin="9,0,0,0" IsEnabled="False" Click="OnStopMcp"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock Text="CLIENT CONFIGURATION" Style="{StaticResource SectionLabel}"/>
+                                <TextBlock Style="{StaticResource Caption}" Margin="0,0,0,9" TextWrapping="Wrap"
+                                           Text="Most MCP clients launch the server themselves. Paste this into your client's config and it will start GameStudio's server on demand."/>
+                                <Border Background="{StaticResource Surface0Brush}" CornerRadius="7" Padding="12">
+                                    <TextBox x:Name="txtMcpConfig" Style="{x:Null}" IsReadOnly="True"
+                                             Background="Transparent" BorderThickness="0"
+                                             Foreground="{StaticResource TextSecondaryBrush}"
+                                             FontFamily="Cascadia Mono, Consolas, monospace" FontSize="12"
+                                             TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto"/>
+                                </Border>
+                                <Button Style="{StaticResource BtnBase}" Content="Copy" Margin="0,10,0,0"
+                                        HorizontalAlignment="Left" Click="OnCopyMcpConfig"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource Card}" Margin="0,16,0,0">
+                            <StackPanel>
+                                <TextBlock Text="AVAILABLE TOOLS" Style="{StaticResource SectionLabel}"/>
+                                <ItemsControl x:Name="listMcpTools">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="0,0,0,10">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource Mono}"
+                                                           Foreground="{StaticResource AccentHoverBrush}"/>
+                                                <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}"
+                                                           TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- ============================ Status bar ============================ -->
+        <Border Grid.Row="2" Background="{StaticResource Surface1Brush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0">
+            <Grid Margin="14,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse x:Name="statusDot" Style="{StaticResource StatusDot}" Fill="{StaticResource SuccessBrush}"
+                             Margin="0,0,7,0"/>
+                    <TextBlock x:Name="txtStatus" Text="Ready" Style="{StaticResource Caption}"/>
+                </StackPanel>
+                <ProgressBar x:Name="jobProgress" Grid.Column="1" Width="240" HorizontalAlignment="Right"
+                             VerticalAlignment="Center" Margin="0,0,14,0" Visibility="Collapsed"/>
+                <TextBlock x:Name="txtJobLabel" Grid.Column="2" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

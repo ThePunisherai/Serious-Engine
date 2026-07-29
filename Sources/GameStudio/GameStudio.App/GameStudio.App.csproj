@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>GameStudio.App</RootNamespace>
+    <AssemblyName>GameStudioEngine</AssemblyName>
+    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
+    <AssemblyTitle>GameStudio Engine</AssemblyTitle>
+    <!-- Lets the project restore and compile on a non-Windows build agent. -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="AppIcon.ico"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GameStudio.Core\GameStudio.Core.csproj"/>
+    <!-- Ships the MCP server next to the app so the MCP panel can launch it in place. -->
+    <ProjectReference Include="..\GameStudio.Mcp\GameStudio.Mcp.csproj"/>
+  </ItemGroup>
+
+</Project>

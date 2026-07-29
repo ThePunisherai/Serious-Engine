@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="GameStudio.App/GameStudio.App.csproj" />
+  <Project Path="GameStudio.Core.Tests/GameStudio.Core.Tests.csproj" />
+  <Project Path="GameStudio.Core/GameStudio.Core.csproj" />
+  <Project Path="GameStudio.Mcp/GameStudio.Mcp.csproj" />
+</Solution>

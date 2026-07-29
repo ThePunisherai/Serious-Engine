@@ -22,6 +22,7 @@ This is the source code for Serious Engine v.1.10, including the following proje
 * `Shaders` Compiled shaders
 * `GameAgent` The serverlist masterserver written in Python
 * `libogg`, `libvorbis` Third party libraries used for playing OGG-encoded ingame music (see http://www.vorbis.com/ for more information)
+* `GameStudio` **GameStudio Engine** — a .NET 10 asset toolchain: archive browser, texture decoder, PBR modernization pipeline, Unreal Engine 5 exporter and MCP server (see [`Sources/GameStudio/README.md`](Sources/GameStudio/README.md))
 
 These have been modified to run correctly under the recent version of Windows. (Tested: Win7 x64, Win8 x64, Win8.1 x64)
 
