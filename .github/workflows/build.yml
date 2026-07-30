@@ -31,7 +31,7 @@ jobs:
           -c Release --no-build --verbosity normal
 
   engine:
-    name: Engine and tools (C++)
+    name: Engine (C++)
     runs-on: windows-latest
     # This started out informational, on the assumption that a 2013-era Win32 codebase would not
     # build unattended. With the toolset retargeted to v143, the pre-build event guarded and MFC

@@ -39,11 +39,15 @@ so none of those tools resolve. The solution also declares the dependency on Ecc
 class compiler is built before the code generation step that needs it.
 
 A second step builds the rest of the solution and is **not** gated. That is a limitation of the
-runner image, not of the code: the game logic, the editors and the small tools need MFC for the
-`v143` toolset these projects pin, and the hosted runner carries Visual Studio 18, whose ATLMFC
-component installs MFC for its own newer toolset. `MSB8041` stands even after installing it, and
-the version-pinned component IDs that would fix it are too brittle to depend on. Those ten
-projects therefore compile locally in Visual Studio but are unverified in CI.
+runner image, not of the code: six projects need MFC for the `v143` toolset they pin —
+`EntitiesMP`, `EngineGUI`, `RCon`, `DecodeReport`, `MakeFONT` and `Depend` — and the hosted runner
+carries Visual Studio 18, whose ATLMFC component installs MFC for its own newer toolset.
+`MSB8041` stands even after installing it, and the version-pinned component IDs that would fix it
+are too brittle to depend on. Anything depending on those six — the game, the editors — is skipped
+rather than failed. They all build locally in Visual Studio; they are simply unverified in CI.
+
+What *does* build there, beyond the gated engine: `Ecc`, `Shaders`, `libogg`, `libvorbis` and
+`libvorbisfile`. The errors-only summary is the evidence — it lists those six and nothing else.
 
 One trap worth knowing, because it cost a wrong conclusion here: a `continue-on-error` step
 reports `conclusion: success` even when the command failed, and this API does not expose the
