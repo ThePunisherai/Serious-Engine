@@ -146,6 +146,13 @@ already at its world size is left alone rather than blown up for nothing.
 This is what the raised dimension cap in the engine is for: without it, anything past 1024 would be
 rejected on load.
 
+The writer is checked against `CTextureData::Read_t` in `Sources/Engine/Graphics/Texture.cpp`
+rather than against this repository's own decoder, which would be circular. The engine reads its
+version-4 `TDAT` as flags, mex width, mex height, fine mip levels, first mip level, frame count —
+the same order and types the writer emits — derives pixel size as `mexWidth >> firstMipLevel`, and
+reads each frame as `width * height * 4` bytes with alpha or `* 3` without, adding an opaque alpha
+channel itself in the second case.
+
 ## Exporting to Unreal Engine 5
 
 `UnrealExporter` turns a manifest into an import package:
