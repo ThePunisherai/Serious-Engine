@@ -27,10 +27,11 @@ The **GameStudio** job restores, builds and tests the .NET solution on `windows-
 rather than Linux because `GameStudio.App` targets `net10.0-windows` for WPF. This one is expected
 to be green, and it is what actually verifies the C# in this repository.
 
-The **Engine** job builds the engine and is marked `continue-on-error`. The engine is a Win32
-codebase with external SDK dependencies the hosted runners do not carry, so it is not expected to
-pass as it stands. It runs because its compiler output is the fastest way to find errors in engine
-changes: read a failure there, do not treat it as a broken build.
+The **Engine** job compiles and links the engine, and is a real gate. It began as an informational
+job on the assumption that a 2013-era Win32 codebase would not build unattended — but with the
+toolset retargeted, the pre-build event guarded and the build going through the solution, it builds
+green from a clean checkout. DirectX stays off (`SE1_D3D` is not defined), which is why it needs no
+external SDK.
 
 It builds `All.sln /t:Engine` rather than the bare project, and both halves of that matter. The
 Engine project puts `Tools.Win32` (bison, flex) and `Bin` (ecc) on `ExecutablePath` via
@@ -38,9 +39,15 @@ Engine project puts `Tools.Win32` (bison, flex) and `Bin` (ecc) on `ExecutablePa
 so none of those tools resolve. The solution also declares Engine's dependency on Ecc, so the
 entity class compiler is built before the code generation step that needs it.
 
-Two bugs surfaced on the first two runs and are fixed: the pre-build event deleted its previous
-output with a bare `del`, which fails on a clean checkout because the file is not there yet, and
-the code generation step could not find its tools for the `$(SolutionDir)` reason above.
+Getting there took four runs, and each one found something real. The pre-build event deleted its
+previous output with a bare `del`, which fails on a clean checkout because the file is not there
+yet. The code generation step could not find bison, flex or ecc, for the `$(SolutionDir)` reason
+above. Then the post-processing stage itself had three compile errors: a missing
+`Engine/Base/Translation.h` include for `TRANS`, integer constants that will not convert to
+`GLenum` because `gl_types.h` makes it an enumeration type, and a `gfx_fSaturation` that collided
+with the engine's existing texture and shadow saturation control — now `gfx_fPostSaturation`.
+
+None of those three were findable without a compiler, which is the argument for the job existing.
 
 ## Building
 

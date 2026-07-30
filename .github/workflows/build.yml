@@ -31,13 +31,13 @@ jobs:
           -c Release --no-build --verbosity normal
 
   engine:
-    name: Engine (C++, informational)
+    name: Engine (C++)
     runs-on: windows-latest
-    # The engine is a 2013-era Win32 codebase with external SDK dependencies that the hosted
-    # runners do not carry, so this is not expected to go green as it stands. It runs anyway
-    # because its compiler output is the fastest way to find errors in engine changes -- treat a
-    # failure here as something to read, not as a broken build.
-    continue-on-error: true
+    # This started out informational, on the assumption that a 2013-era Win32 codebase would not
+    # build unattended. It does: with the toolset retargeted to v143, the pre-build event guarded
+    # and the build going through the solution, it compiles and links from a clean checkout. So it
+    # is a real gate now -- a break here is a break, not a curiosity. DirectX stays off (SE1_D3D
+    # is not defined), which is why no external SDK is needed.
     steps:
       - uses: actions/checkout@v4
 
