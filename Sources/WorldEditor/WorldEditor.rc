@@ -366,6 +366,13 @@ BEGIN
         MENUITEM "&Property combo",             ID_VIEW_PROPERTYCOMBO
         MENUITEM "&Info window\tQ, Ctrl+I",     ID_VIEW_INFOWINDOW
     END
+    POPUP "&Tools"
+    BEGIN
+        MENUITEM "&GameStudio Engine...",       ID_CALL_GAMESTUDIO
+        MENUITEM SEPARATOR
+        MENUITEM "Call &Modeler",               ID_CALL_MODELER
+        MENUITEM "Call &TexMaker",              ID_CALL_TEXMAKER
+    END
     POPUP "&Help"
     BEGIN
         MENUITEM "Ti&p of the Day",             ID_HELP_SHOWTIPOFTHEDAY
@@ -453,6 +460,13 @@ BEGIN
         MENUITEM "&Tile",                       ID_WINDOW_TILE_HORZ
         MENUITEM "&Arrange Icons",              ID_WINDOW_ARRANGE
         MENUITEM "S&plit",                      ID_WINDOW_SPLIT
+    END
+    POPUP "&Tools"
+    BEGIN
+        MENUITEM "&GameStudio Engine...",       ID_CALL_GAMESTUDIO
+        MENUITEM SEPARATOR
+        MENUITEM "Call &Modeler",               ID_CALL_MODELER
+        MENUITEM "Call &TexMaker",              ID_CALL_TEXMAKER
     END
     POPUP "&Help"
     BEGIN
@@ -3529,6 +3543,7 @@ BEGIN
     ID_RENDER_TARGETS       "Show/Hide entitiy targets\nShow targets (G)"
     ID_CALL_MODELER         "Call model editor\nCall Modeler"
     ID_CALL_TEXMAKER        "Call texture maker\nCall TexMaker"
+    ID_CALL_GAMESTUDIO      "Modernize assets, convert to PBR and export to Unreal\nGameStudio Engine"
     ID_VIEW_SETTINGS_AND_UTILITY_BAR 
                             "Show or hide the settings and utility tool bar\nToggle settings and utility bar"
     ID_VIEW_VIEW_TOOLS_BAR  "Show or hide the view tools tool bar\nToggle view tools bar"

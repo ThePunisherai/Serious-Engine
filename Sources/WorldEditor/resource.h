@@ -906,6 +906,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define ID_BUTTON32935                  32935
 #define ID_RENDER_TARGETS               32936
 #define ID_CALL_MODELER                 32938
+#define ID_CALL_GAMESTUDIO              33403
 #define ID_CALL_TEXMAKER                32939
 #define ID_VIEW_SETTINGS_AND_UTILITY_BAR 32940
 #define ID_VIEW_VIEW_TOOLS_BAR          32941
@@ -1328,7 +1329,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
 #define _APS_NEXT_RESOURCE_VALUE        255
-#define _APS_NEXT_COMMAND_VALUE         33391
+#define _APS_NEXT_COMMAND_VALUE         33404
 #define _APS_NEXT_CONTROL_VALUE         1264
 #define _APS_NEXT_SYMED_VALUE           111
 #endif

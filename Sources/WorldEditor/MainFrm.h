@@ -145,6 +145,7 @@ public:
 	afx_msg void OnActivateApp(BOOL bActive, DWORD hTask);
 	afx_msg void OnCreateTexture();
 	afx_msg void OnCallModeler();
+	afx_msg void OnCallGameStudio();
 	afx_msg void OnCallTexmaker();
 	afx_msg void OnViewSettingsAndUtilityBar();
 	afx_msg void OnUpdateViewSettingsAndUtilityBar(CCmdUI* pCmdUI);

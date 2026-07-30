@@ -116,6 +116,25 @@ configurations keep whatever they already had.
 Stock game content is 512 pixels or smaller, so none of this changes how the original games look;
 it only stops the engine from throwing away resolution that modernized art actually has.
 
+**Lightmaps are 32-bit by default.** `shd_bFineQuality` was off, which stores lightmaps at 16 bits
+and shows as banding across large lit surfaces. `ShadowMap.cpp` and `LayerMixer.cpp` already force
+it back off when the driver reports no 32-bit texture support, so it degrades on its own. The
+shadow cache went from 8 MB to 64 MB (it is clamped to 128), which is the difference between
+constantly re-rendering shadowmaps and keeping a level's worth of them resident.
+
+Lightmap *resolution* is deliberately left alone. `shd_iStaticSize` is already at its ceiling of 8,
+and raising that ceiling would need a wider `MipmapTable::mmt_aslOffsets`, which is sized from
+`MAX_MEX_LOG2` and would overflow at the next step up. That is a real change rather than a default,
+and it is not one to make without being able to run the lightmap baker.
+
+## Editor integration
+
+The GameStudio app is reachable from inside the editor rather than only as a separate program.
+WorldEditor gained a **Tools** menu on both menu bars, with **GameStudio Engine...** alongside the
+existing Modeler and TexMaker entries — those two were previously toolbar-only. It reuses
+`CMainFrame::StartApplication()`, the same helper `OnCallModeler()` uses, and expects
+`GameStudioEngine.exe` next to the editor.
+
 ## Rebranding
 
 The engine startup banner, the editor and the modeler now identify as **GameStudio Engine**,

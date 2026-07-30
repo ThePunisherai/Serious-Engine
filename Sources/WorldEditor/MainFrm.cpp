@@ -75,6 +75,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CMDIFrameWnd)
 	ON_WM_ACTIVATEAPP()
 	ON_COMMAND(ID_CREATE_TEXTURE, OnCreateTexture)
 	ON_COMMAND(ID_CALL_MODELER, OnCallModeler)
+	ON_COMMAND(ID_CALL_GAMESTUDIO, OnCallGameStudio)
 	ON_COMMAND(ID_CALL_TEXMAKER, OnCallTexmaker)
 	ON_COMMAND(ID_VIEW_SETTINGS_AND_UTILITY_BAR, OnViewSettingsAndUtilityBar)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_SETTINGS_AND_UTILITY_BAR, OnUpdateViewSettingsAndUtilityBar)
@@ -1304,13 +1305,20 @@ void CMainFrame::StartApplication( CTString strApplicationToRun)
   // if process creation was not successful
   if( !bSuccess)
   {
-    WarningMessage( "WorldEditor was unable to run \"%s\"", (CTString&)fnApplicationToRun);
+    WarningMessage( "GameStudio Editor was unable to run \"%s\"", (CTString&)fnApplicationToRun);
   }
 }
 
 void CMainFrame::OnCallModeler()
 {
   StartApplication( "Modeler.exe");
+}
+
+void CMainFrame::OnCallGameStudio()
+{
+  // Asset modernization, PBR conversion and Unreal export live in the GameStudio companion
+  // application; it is expected next to the editor, same as Modeler and TexMaker.
+  StartApplication( "GameStudioEngine.exe");
 }
 
 

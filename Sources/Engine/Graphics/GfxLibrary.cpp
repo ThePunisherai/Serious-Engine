@@ -136,13 +136,16 @@ extern INDEX tex_bAlternateCompression = FALSE;  // basically, this is fix for G
 
 extern INDEX shd_iStaticSize  = 8;    
 extern INDEX shd_iDynamicSize = 8;    
-extern INDEX shd_bFineQuality = FALSE; 
+// 32-bit lightmaps instead of 16-bit, which removes the banding visible across large lit surfaces.
+// Both ShadowMap.cpp and LayerMixer.cpp force this back off when the driver reports no 32-bit
+// texture support, so it degrades on its own rather than needing a hardware check here.
+extern INDEX shd_bFineQuality = TRUE;
 extern INDEX shd_iFiltering = 3;     // >0 = blurring, 0 = no filtering
 extern INDEX shd_iDithering = 1;     // 0=none, 1,2=low, 3,4=medium, 5=high
 extern INDEX shd_iAllowDynamic = 1;    // 0=disallow, 1=allow on polys w/o 'NoDynamicLights' flag, 2=allow unconditionally
 extern INDEX shd_bDynamicMipmaps = TRUE;
 extern FLOAT shd_tmFlushDelay = 30.0f; // in seconds
-extern FLOAT shd_fCacheSize   = 8.0f;  // in megabytes
+extern FLOAT shd_fCacheSize   = 64.0f; // in megabytes (clamped to 128 on use)
 extern INDEX shd_bCacheAll    = FALSE; // cache all shadowmap at the level loading time (careful - memory eater!)
 extern INDEX shd_bAllowFlats = TRUE;   // allow optimization of single-color shadowmaps
 extern INDEX shd_iForceFlats = 0;      // force all shadowmaps to be flat (internal!) - 0=don't, 1=w/o overbrighting, 2=w/ overbrighting
