@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  gamestudio:
+    name: GameStudio (.NET)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Windows, not Linux: GameStudio.App targets net10.0-windows for WPF. Core and Mcp are
+      # portable, but building the whole solution in one job is what keeps them honest about it.
+      - name: Restore
+        run: dotnet restore Sources/GameStudio/GameStudio.slnx
+
+      - name: Build
+        run: dotnet build Sources/GameStudio/GameStudio.slnx -c Release --no-restore
+
+      - name: Test
+        run: >
+          dotnet test Sources/GameStudio/GameStudio.Core.Tests/GameStudio.Core.Tests.csproj
+          -c Release --no-build --verbosity normal
+
+  engine:
+    name: Engine (C++, informational)
+    runs-on: windows-latest
+    # The engine is a 2013-era Win32 codebase with external SDK dependencies that the hosted
+    # runners do not carry, so this is not expected to go green as it stands. It runs anyway
+    # because its compiler output is the fastest way to find errors in engine changes -- treat a
+    # failure here as something to read, not as a broken build.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build Engine
+        run: >
+          msbuild Sources/Engine/Engine.vcxproj
+          /p:Configuration=Release /p:Platform=Win32
+          /m /verbosity:minimal

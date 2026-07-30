@@ -19,6 +19,19 @@ WPF application, sharing the visual identity of [XFS Studio](https://github.com/
 All the real work lives in `GameStudio.Core`, so the app and the MCP server expose the same
 behaviour and the logic is testable on any platform.
 
+## Continuous integration
+
+`.github/workflows/build.yml` has two jobs.
+
+The **GameStudio** job restores, builds and tests the .NET solution on `windows-latest` — Windows
+rather than Linux because `GameStudio.App` targets `net10.0-windows` for WPF. This one is expected
+to be green, and it is what actually verifies the C# in this repository.
+
+The **Engine** job builds `Engine.vcxproj` and is marked `continue-on-error`. The engine is a
+Win32 codebase with external SDK dependencies the hosted runners do not carry, so it is not
+expected to pass as it stands. It runs because its compiler output is the fastest way to find
+errors in engine changes: read a failure there, do not treat it as a broken build.
+
 ## Building
 
 ```bash
@@ -83,6 +96,16 @@ re-running the script.
 **Scope:** this path covers textures and materials. Model and world geometry (`.mdl`, `.wld`) is
 **not** exported — those formats have eight version variants with compressed vertex data, and a
 geometry exporter that is subtly wrong is worse than none. Geometry is the next stage.
+
+## Toolset
+
+All twenty C++ projects were retargeted from `v120` to `v143`. v120 is the Visual Studio 2013
+toolset, which current Visual Studio cannot even install — every project had to be retargeted by
+hand before it would open. v143 is the VS2022 toolset and still supports the x86 inline assembly
+this codebase is full of, so the retarget does not force the `__asm` blocks to be rewritten.
+
+Each project also gained `<WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>`,
+which resolves to whichever Windows SDK is installed rather than pinning a version nobody has.
 
 ## Engine-side changes
 
