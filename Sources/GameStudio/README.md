@@ -127,6 +127,39 @@ and raising that ceiling would need a wider `MipmapTable::mmt_aslOffsets`, which
 `MAX_MEX_LOG2` and would overflow at the next step up. That is a real change rather than a default,
 and it is not one to make without being able to run the lightmap baker.
 
+## Post-processing for existing games
+
+The scene renderer is untouched — still fixed-function, still no shaders. A GLSL chain runs
+*afterwards*, on the finished frame, which is what lets it improve content built for the original
+engine without that content or the renderer knowing anything about it. Off by default, because it
+changes how every existing game looks.
+
+```
+gfx_bPostProcessing = 1;    // master switch, off by default
+gfx_fExposure       = 1.0;  // 0.1 - 8
+gfx_iTonemap        = 1;    // 0 = off, 1 = filmic (ACES)
+gfx_fSaturation     = 1.0;  // 0 = greyscale, 1 = unchanged
+gfx_fBloomThreshold = 0.75; // brightness where bleed starts
+gfx_fBloomIntensity = 0.35; // 0 disables the bloom passes entirely
+gfx_bFXAA           = 1;    // edge-directed antialiasing
+```
+
+The frame is read back with `glCopyTexSubImage2D` instead of being rendered into a framebuffer
+object, so nothing about how the scene is drawn has to change and no FBO support is needed — only
+GLSL, which is GL 2.0. Intermediate passes draw into the back buffer and are copied straight back
+out; it is not presented until the chain finishes, so using it as scratch space is free. The
+fullscreen quad goes through the engine's own vertex arrays and `gfx*` state wrappers rather than
+raw GL, because the engine caches its GL state and asserts against the driver in debug builds.
+
+Worth being clear about one limit: the frame is captured from an 8-bit back buffer, so this is
+tonemapping and bloom applied to LDR data. It is a look, not true HDR — real HDR would mean the
+scene renderer writing float targets, which is the renderer rewrite this deliberately avoids.
+
+Screen-space ambient occlusion is not in the chain. It needs the depth buffer plus the scene's
+projection matrix to reconstruct position, and by the time this stage runs the projection has been
+replaced by the 2D overlay's. Capturing it properly means hooking where the scene projection is
+set, which is scene-renderer surgery rather than a post pass.
+
 ## Editor integration
 
 The GameStudio app is reachable from inside the editor rather than only as a separate program.

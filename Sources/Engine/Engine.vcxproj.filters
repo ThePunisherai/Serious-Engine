@@ -298,6 +298,9 @@
     <ClCompile Include="Graphics\Gfx_Direct3D_Textures.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="Graphics\GfxPostProcess.cpp">
+      <Filter>Source Files\Graphics</Filter>
+    </ClCompile>
     <ClCompile Include="Graphics\Gfx_OpenGL.cpp">
       <Filter>Source Files\Graphics</Filter>
     </ClCompile>
@@ -940,6 +943,9 @@
       <Filter>Header Files\Graphics Headers</Filter>
     </ClInclude>
     <ClInclude Include="Graphics\Font.h">
+      <Filter>Header Files\Graphics Headers</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics\GfxPostProcess.h">
       <Filter>Header Files\Graphics Headers</Filter>
     </ClInclude>
     <ClInclude Include="Graphics\Gfx_wrapper.h">

@@ -16,6 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "stdh.h"
 
 #include <Engine/Graphics/GfxLibrary.h>
+#include <Engine/Graphics/GfxPostProcess.h>
 #include <Engine/Base/Translation.h>
 #include <Engine/Base/ErrorReporting.h>
 #include <Engine/Base/Memory.h>
@@ -821,6 +822,9 @@ BOOL CGfxLibrary::InitDriver_OGL( BOOL b3Dfx/*=FALSE*/)
 // shutdown OpenGL driver
 void CGfxLibrary::EndDriver_OGL(void)
 {
+  // drop post-processing shaders and scratch targets while the context is still current
+  ShutdownPostProcessing();
+
   // unbind all textures
   if( _pTextureStock!=NULL) {
     {FOREACHINDYNAMICCONTAINER( _pTextureStock->st_ctObjects, CTextureData, ittd) {

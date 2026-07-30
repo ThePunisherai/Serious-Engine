@@ -33,6 +33,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Graphics/ShadowMap.h>
 #include <Engine/Graphics/Texture.h>
 #include <Engine/Graphics/GfxProfile.h>
+#include <Engine/Graphics/GfxPostProcess.h>
 #include <Engine/Graphics/Raster.h>
 #include <Engine/Graphics/ViewPort.h>
 #include <Engine/Graphics/DrawPort.h>
@@ -245,6 +246,17 @@ extern INDEX gfx_bRenderModels     = TRUE;
 extern INDEX gfx_bRenderPredicted  = FALSE;
 extern INDEX gfx_bRenderFog        = TRUE;
 extern INDEX gfx_iLensFlareQuality = 3;   // 0=none, 1=corona only, 2=corona and reflections, 3=corona, reflections and glare 
+
+// Post-processing over the finished frame: off by default, because it changes how every existing
+// game looks. See GfxPostProcess.cpp -- it runs after the scene renderer rather than inside it,
+// which is what lets it work on content built for the original engine.
+extern INDEX gfx_bPostProcessing  = FALSE;
+extern INDEX gfx_bFXAA            = TRUE;
+extern INDEX gfx_iTonemap         = 1;      // 0=off, 1=filmic (ACES)
+extern FLOAT gfx_fExposure        = 1.0f;
+extern FLOAT gfx_fSaturation      = 1.0f;
+extern FLOAT gfx_fBloomThreshold  = 0.75f;
+extern FLOAT gfx_fBloomIntensity  = 0.35f;
 
 extern INDEX gfx_bDecoratedText   = TRUE;
 extern INDEX gfx_bClearScreen = FALSE;
@@ -1155,6 +1167,13 @@ void CGfxLibrary::Init(void)
   _pShell->DeclareSymbol("persistent user INDEX gfx_bDisableMultiMonSupport;", &gfx_bDisableMultiMonSupport);
   _pShell->DeclareSymbol("persistent user INDEX gfx_bDisableWindowsKeys;",     &gfx_bDisableWindowsKeys);
   _pShell->DeclareSymbol("persistent user INDEX gfx_bDecoratedText;",    &gfx_bDecoratedText);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_bPostProcessing;",   &gfx_bPostProcessing);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_bFXAA;",             &gfx_bFXAA);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_iTonemap;",          &gfx_iTonemap);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fExposure;",         &gfx_fExposure);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fSaturation;",       &gfx_fSaturation);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBloomThreshold;",   &gfx_fBloomThreshold);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fBloomIntensity;",   &gfx_fBloomIntensity);
   _pShell->DeclareSymbol("     const user INDEX gfx_ctMonitors;",        &gfx_ctMonitors);
   _pShell->DeclareSymbol("     const user INDEX gfx_bMultiMonDisabled;", &gfx_bMultiMonDisabled);
 
@@ -1756,6 +1775,9 @@ void CGfxLibrary::SwapBuffers(CViewPort *pvp)
   // OpenGL  
   if( gl_eCurrentAPI==GAT_OGL)
   {
+    // run the post-processing chain over the finished frame, before it is presented
+    PostProcessFrame();
+
     // force finishing of all rendering operations (if required)
     if( ogl_iFinish==2) gfxFinish();
 
