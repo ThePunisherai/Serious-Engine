@@ -85,6 +85,18 @@ public sealed class ToolCatalog
             },
             required: ["modernizedDirectory", "output"]),
 
+        Tool("upgrade_textures",
+            "Rewrite engine textures at higher resolution in the engine's own .tex format, so an existing game loads sharper artwork with no engine change. World scale is preserved.",
+            new JsonObject
+            {
+                ["source"] = Property("string", "A directory of .tex files, or a .gro archive to read them from directly."),
+                ["output"] = Property("string", "Directory to write the upgraded .tex files into, mirroring the source layout."),
+                ["scale"] = Property("integer", "Largest sharpening factor, a power of two up to 8. Each texture is clamped to what its own mip headroom allows. Defaults to 4."),
+                ["filter"] = Property("string", "Resampling filter: Nearest, Bilinear, Bicubic or Lanczos3. Defaults to Lanczos3."),
+                ["maxDimension"] = Property("integer", "Pixel ceiling, matching the engine's own limit. Defaults to 4096."),
+            },
+            required: ["source", "output"]),
+
         Tool("create_map",
             "Start a new map definition and write it to disk. Rooms, lights and props are added afterwards with the map_add_* tools.",
             new JsonObject
@@ -178,6 +190,7 @@ public sealed class ToolCatalog
                 "export_texture" => ExportTexture(arguments),
                 "modernize_textures" => await Task.Run(() => ModernizeTextures(arguments, cancellationToken), cancellationToken),
                 "export_unreal" => ExportUnreal(arguments),
+                "upgrade_textures" => await Task.Run(() => UpgradeTextures(arguments, cancellationToken), cancellationToken),
                 "create_map" => CreateMap(arguments),
                 "map_add_room" => MapAddRoom(arguments),
                 "map_add_light" => MapAddLight(arguments),
@@ -375,6 +388,57 @@ public sealed class ToolCatalog
             ["materials"] = result.MaterialCount,
             ["textures"] = result.TextureCount,
             ["nextStep"] = $"In the Unreal Editor, run:  py \"{result.ScriptPath}\"",
+        }.ToJsonString(GameStudioJson.Options);
+    }
+
+    private string UpgradeTextures(JsonObject arguments, CancellationToken cancellationToken)
+    {
+        string source = ResolvePath(RequireString(arguments, "source"));
+        string output = ResolvePath(RequireString(arguments, "output"));
+        string filterName = OptionalString(arguments, "filter") ?? nameof(ResampleFilter.Lanczos3);
+
+        if (!Enum.TryParse<ResampleFilter>(filterName, ignoreCase: true, out var filter))
+            throw new ArgumentException(
+                $"Unknown filter '{filterName}'. Valid values: {string.Join(", ", Enum.GetNames<ResampleFilter>())}.");
+
+        var settings = new UpgradeSettings
+        {
+            MaxScale = Math.Clamp(OptionalInt(arguments, "scale") ?? 4, 1, 8),
+            Filter = filter,
+            MaxDimension = Math.Clamp(OptionalInt(arguments, "maxDimension") ?? 4096, 64, 8192),
+        };
+
+        UpgradeReport report = Directory.Exists(source)
+            ? TextureUpgrade.RunOnDirectory(source, output, settings, cancellationToken)
+            : TextureUpgrade.RunOnArchive(source, output, settings, cancellationToken);
+
+        // The largest gains are the interesting ones: they are the textures that were stored
+        // furthest below the size the world already reserves for them.
+        var best = report.Textures.Where(t => t.Upgraded)
+            .OrderByDescending(t => t.Factor).ThenByDescending(t => t.UpgradedWidth)
+            .Take(10);
+
+        return new JsonObject
+        {
+            ["source"] = source,
+            ["output"] = report.OutputDirectory,
+            ["upgraded"] = report.UpgradedCount,
+            ["leftAlone"] = report.SkippedCount,
+            ["maxScale"] = settings.MaxScale,
+            ["note"] = "World scale is unchanged: mex size is preserved and only the stored pixel "
+                     + "density rises, so textures look sharper at the same size on a surface.",
+            ["largestGains"] = new JsonArray([.. best.Select(t => (JsonNode)new JsonObject
+            {
+                ["name"] = t.Name,
+                ["from"] = $"{t.OriginalWidth}x{t.OriginalHeight}",
+                ["to"] = $"{t.UpgradedWidth}x{t.UpgradedHeight}",
+                ["factor"] = t.Factor,
+            })]),
+            ["skipReasons"] = new JsonArray([.. report.Textures
+                .Where(t => !t.Upgraded)
+                .GroupBy(t => t.SkipReason!)
+                .OrderByDescending(g => g.Count())
+                .Select(g => (JsonNode)new JsonObject { ["reason"] = g.Key, ["count"] = g.Count() })]),
         }.ToJsonString(GameStudioJson.Options);
     }
 

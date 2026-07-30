@@ -76,6 +76,7 @@ public class McpServerTests : IDisposable
 
         Assert.Equal(
             ["engine_overview", "list_archive", "texture_info", "export_texture", "modernize_textures", "export_unreal",
+             "upgrade_textures",
              "create_map", "map_add_room", "map_add_light", "map_add_prop", "map_describe", "export_map_unreal"],
             tools.Select(t => t!["name"]!.GetValue<string>()));
 

@@ -112,6 +112,40 @@ missing or fails, the pipeline falls back to built-in resampling and says so in 
 
 Each run writes PNGs plus a `materials.json` manifest.
 
+## Upgrading the engine's own textures
+
+The modernization pipeline above targets Unreal. This one targets the original engine: it rewrites
+`.tex` files at higher resolution *in the engine's own format*, so an existing game loads sharper
+artwork with no engine change at all.
+
+```
+upgrade_textures source=SE1_10.gro output=./upgraded scale=4
+```
+
+It works because a `.tex` stores two different sizes. `mexWidth` is the world-space size — how
+large the texture appears on a surface — and the stored pixels sit `firstMipLevel` powers of two
+below it. Most of the shipped artwork has room there. Measured across the 724 textures in
+`SE1_10.gro`:
+
+| `firstMipLevel` | textures | headroom |
+| --- | --- | --- |
+| 0 | 164 | none |
+| 1–2 | 139 | 2–4× |
+| 3–5 | 359 | 8–32× |
+| 6+ | 62 | 64× and up |
+
+560 of 724 store fewer pixels than their own world size already reserves for them. `AmonGold.tex`
+is 2048 mex storing 32×32. So lowering `firstMipLevel` and writing denser pixels sharpens a texture
+while leaving its world scale exactly where it was.
+
+Raising `mexWidth` instead is the obvious-looking move and is exactly wrong — it rescales the
+texture on every surface that uses it, so a wall that showed one tile would suddenly show four.
+Each texture is clamped to its own headroom and to the engine's 4096-pixel limit, and a texture
+already at its world size is left alone rather than blown up for nothing.
+
+This is what the raised dimension cap in the engine is for: without it, anything past 1024 would be
+rejected on load.
+
 ## Exporting to Unreal Engine 5
 
 `UnrealExporter` turns a manifest into an import package:
