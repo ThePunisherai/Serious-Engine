@@ -53,3 +53,13 @@ jobs:
           msbuild Sources/All.sln /t:Engine
           /p:Configuration=Release /p:Platform=Win32
           /m /verbosity:minimal
+
+      # The toolset retarget touched all twenty projects but only Engine is gated, so a break in
+      # the game or the tools would go unnoticed. Informational until it is known what actually
+      # builds here -- some of these want MFC or the LightWave SDK, which the runner may not have.
+      - name: Build the rest of the solution (informational)
+        continue-on-error: true
+        run: >
+          msbuild Sources/All.sln
+          /p:Configuration=Release /p:Platform=Win32
+          /m /verbosity:minimal
