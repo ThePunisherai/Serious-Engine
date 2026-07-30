@@ -180,9 +180,14 @@ static const char *_strSsaoShader =
 static const char *_strBrightShader =
   "#version 110\n"
   "uniform sampler2D texScene;\n"
+  "uniform sampler2D texAO;\n"
   "uniform float fThreshold;\n"
+  "uniform int iUseAO;\n"
   "void main() {\n"
   "  vec3 vColor = texture2D(texScene, gl_TexCoord[0].st).rgb;\n"
+  // Occlusion is applied here rather than only in the composite, so a corner that is shadowed
+  // does not go on to bleed light into its surroundings at full strength.
+  "  if (iUseAO != 0) vColor *= texture2D(texAO, gl_TexCoord[0].st).r;\n"
   "  float fLuma = dot(vColor, vec3(0.2126, 0.7152, 0.0722));\n"
   "  float fKnee = max(fLuma - fThreshold, 0.0) / max(fLuma, 0.0001);\n"
   "  gl_FragColor = vec4(vColor * fKnee, 1.0);\n"
@@ -591,7 +596,11 @@ void PostProcessFrame(void)
 
     pUseProgram(_uiBrightProgram);
     SetSampler(_uiBrightProgram, "texScene", 0, _uiSceneTexture);
+    SetSampler(_uiBrightProgram, "texAO", 1, bAO ? _uiAoA : _uiSceneTexture);
+    pUniform1i(pGetUniformLocation(_uiBrightProgram, "iUseAO"), bAO ? 1 : 0);
     pUniform1f(pGetUniformLocation(_uiBrightProgram, "fThreshold"), gfx_fBloomThreshold);
+    // Back to unit 0: ogl_SetVertexArray asserts on it, and the quad is drawn next.
+    gfxSetTextureUnit(0);
     DrawFullScreenQuad();
     CaptureInto(_uiBloomA, pixHalfW, pixHalfH);
 

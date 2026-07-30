@@ -211,8 +211,12 @@ that draws no world sits occlusion out rather than reusing a stale projection.
 The kernel is a spiral generated from the loop counter rather than read out of a const array,
 because indexing an array with a loop variable is not something GLSL 110 guarantees. Each pixel
 rotates the spiral by a hash of its coordinates, trading banding for noise, and the two blur passes
-turn that noise back into a smooth term. Occlusion resolves at half resolution and multiplies into
-the scene *before* bloom, so an unlit corner darkens instead of glowing.
+turn that noise back into a smooth term. Occlusion resolves at half resolution.
+
+It is applied in two places, which is deliberate. The composite multiplies it into the scene, and
+the bright pass multiplies it in as well before deciding what is bright enough to bleed. Without
+that second one a shadowed corner would still bloom at full strength, because the bloom would have
+been extracted from an image the occlusion had not touched yet.
 
 If the driver refuses a depth texture, occlusion switches itself off for the session and the rest
 of the chain carries on.
