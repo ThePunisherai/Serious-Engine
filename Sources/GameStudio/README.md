@@ -27,17 +27,17 @@ The **GameStudio** job restores, builds and tests the .NET solution on `windows-
 rather than Linux because `GameStudio.App` targets `net10.0-windows` for WPF. This one is expected
 to be green, and it is what actually verifies the C# in this repository.
 
-The **Engine** job compiles and links the engine, and is a real gate. It began as an informational
-job on the assumption that a 2013-era Win32 codebase would not build unattended — but with the
-toolset retargeted, the pre-build event guarded and the build going through the solution, it builds
-green from a clean checkout. DirectX stays off (`SE1_D3D` is not defined), which is why it needs no
-external SDK.
+The **Engine and tools** job builds all twenty C++ projects — engine, game, editors and tools —
+and is a real gate. It began as an informational job on the assumption that a 2013-era Win32
+codebase would not build unattended, but with the toolset retargeted and the pre-build event
+guarded, the whole solution compiles and links from a clean checkout, MFC editors included.
+DirectX stays off (`SE1_D3D` is not defined), which is why it needs no external SDK.
 
-It builds `All.sln /t:Engine` rather than the bare project, and both halves of that matter. The
+It builds `All.sln` rather than individual projects, and that matters. The
 Engine project puts `Tools.Win32` (bison, flex) and `Bin` (ecc) on `ExecutablePath` via
 `$(SolutionDir)`, which a bare `.vcxproj` build leaves pointing at the project's own directory —
-so none of those tools resolve. The solution also declares Engine's dependency on Ecc, so the
-entity class compiler is built before the code generation step that needs it.
+so none of those tools resolve. The solution also declares the dependency on Ecc, so the entity
+class compiler is built before the code generation step that needs it.
 
 Getting there took four runs, and each one found something real. The pre-build event deleted its
 previous output with a bare `del`, which fails on a clean checkout because the file is not there

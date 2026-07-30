@@ -31,13 +31,13 @@ jobs:
           -c Release --no-build --verbosity normal
 
   engine:
-    name: Engine (C++)
+    name: Engine and tools (C++)
     runs-on: windows-latest
     # This started out informational, on the assumption that a 2013-era Win32 codebase would not
-    # build unattended. It does: with the toolset retargeted to v143, the pre-build event guarded
-    # and the build going through the solution, it compiles and links from a clean checkout. So it
-    # is a real gate now -- a break here is a break, not a curiosity. DirectX stays off (SE1_D3D
-    # is not defined), which is why no external SDK is needed.
+    # build unattended. It does: with the toolset retargeted to v143 and the pre-build event
+    # guarded, all twenty projects compile and link from a clean checkout. So it is a real gate
+    # -- a break here is a break, not a curiosity. DirectX stays off (SE1_D3D is not defined),
+    # which is why no external SDK is needed.
     steps:
       - uses: actions/checkout@v4
 
@@ -48,17 +48,10 @@ jobs:
       # (ecc) -- building the .vcxproj alone points it at Sources/Engine and none of them resolve.
       # And the solution declares Engine's dependency on Ecc, so the entity class compiler gets
       # built before the code generation step that needs it.
-      - name: Build Engine
-        run: >
-          msbuild Sources/All.sln /t:Engine
-          /p:Configuration=Release /p:Platform=Win32
-          /m /verbosity:minimal
-
-      # The toolset retarget touched all twenty projects but only Engine is gated, so a break in
-      # the game or the tools would go unnoticed. Informational until it is known what actually
-      # builds here -- some of these want MFC or the LightWave SDK, which the runner may not have.
-      - name: Build the rest of the solution (informational)
-        continue-on-error: true
+      # The whole solution, not just the engine: the toolset retarget touched all twenty projects,
+      # and a break in the game or the editors matters as much as one in the engine. All twenty do
+      # build on a hosted runner, MFC editors included, so this is gated rather than informational.
+      - name: Build
         run: >
           msbuild Sources/All.sln
           /p:Configuration=Release /p:Platform=Win32

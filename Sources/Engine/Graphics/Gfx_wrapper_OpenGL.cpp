@@ -902,13 +902,23 @@ static void ogl_SetFrustum( const FLOAT fLeft, const FLOAT fRight,
 
   // Remember the scene's projection for the post-processing stage. It cannot read GFX_fLast*
   // because ogl_SetOrtho writes those too, and the 2D overlay is drawn after the world -- by the
-  // time the frame is finished they describe the overlay, not the scene. Recorded before the
-  // cache check below, so an unchanged frustum still refreshes it.
-  _fPostSceneNear = Abs( fNear);
-  _fPostSceneFar  = Abs( fFar);
-  _fPostSceneTanX = Abs( fRight-fLeft) / (2.0f * Max( Abs(fNear), 0.0001f));
-  _fPostSceneTanY = Abs( fTop-fBottom) / (2.0f * Max( Abs(fNear), 0.0001f));
-  _bPostSceneFrustumValid = TRUE;
+  // time the frame is finished they describe the overlay, not the scene.
+  //
+  // First perspective frustum of the frame wins, not the last. CDrawPort::SetProjection is also
+  // called per model, per terrain and per particle pass, and the first-person weapon is drawn with
+  // a narrower field of view than the world it stands in; taking the last one would hand ambient
+  // occlusion the weapon's projection and put every reconstructed position in the wrong place.
+  // The world sets its projection at the start of its own render, before any of those, and the
+  // post-processing stage clears the flag once it has consumed it.
+  //
+  // Recorded before the cache check below, so an unchanged frustum still refreshes it.
+  if( !_bPostSceneFrustumValid) {
+    _fPostSceneNear = Abs( fNear);
+    _fPostSceneFar  = Abs( fFar);
+    _fPostSceneTanX = Abs( fRight-fLeft) / (2.0f * Max( Abs(fNear), 0.0001f));
+    _fPostSceneTanY = Abs( fTop-fBottom) / (2.0f * Max( Abs(fNear), 0.0001f));
+    _bPostSceneFrustumValid = TRUE;
+  }
 
   // cached?
   if( GFX_fLastL==-fLeft  && GFX_fLastT==-fTop    && GFX_fLastN==-fNear
