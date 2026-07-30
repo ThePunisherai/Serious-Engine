@@ -27,10 +27,20 @@ The **GameStudio** job restores, builds and tests the .NET solution on `windows-
 rather than Linux because `GameStudio.App` targets `net10.0-windows` for WPF. This one is expected
 to be green, and it is what actually verifies the C# in this repository.
 
-The **Engine** job builds `Engine.vcxproj` and is marked `continue-on-error`. The engine is a
-Win32 codebase with external SDK dependencies the hosted runners do not carry, so it is not
-expected to pass as it stands. It runs because its compiler output is the fastest way to find
-errors in engine changes: read a failure there, do not treat it as a broken build.
+The **Engine** job builds the engine and is marked `continue-on-error`. The engine is a Win32
+codebase with external SDK dependencies the hosted runners do not carry, so it is not expected to
+pass as it stands. It runs because its compiler output is the fastest way to find errors in engine
+changes: read a failure there, do not treat it as a broken build.
+
+It builds `All.sln /t:Engine` rather than the bare project, and both halves of that matter. The
+Engine project puts `Tools.Win32` (bison, flex) and `Bin` (ecc) on `ExecutablePath` via
+`$(SolutionDir)`, which a bare `.vcxproj` build leaves pointing at the project's own directory —
+so none of those tools resolve. The solution also declares Engine's dependency on Ecc, so the
+entity class compiler is built before the code generation step that needs it.
+
+Two bugs surfaced on the first two runs and are fixed: the pre-build event deleted its previous
+output with a bare `del`, which fails on a clean checkout because the file is not there yet, and
+the code generation step could not find its tools for the `$(SolutionDir)` reason above.
 
 ## Building
 
