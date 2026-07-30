@@ -27,21 +27,28 @@ The **GameStudio** job restores, builds and tests the .NET solution on `windows-
 rather than Linux because `GameStudio.App` targets `net10.0-windows` for WPF. This one is expected
 to be green, and it is what actually verifies the C# in this repository.
 
-The **Engine and tools** job builds all twenty C++ projects — engine, game, editors and tools —
-and is a real gate. It began as an informational job on the assumption that a 2013-era Win32
-codebase would not build unattended, but with the toolset retargeted and the pre-build event
-guarded, it does.
+The **Engine** job is the gate. It builds the engine and everything it needs, which covers every
+engine change in this repository. It began as an informational job on the assumption that a
+2013-era Win32 codebase would not build unattended, but with the toolset retargeted and the
+pre-build event guarded, it does.
 
-It installs MFC first. Several projects need it — the game logic in `EntitiesMP`, the editors, and
-the small tools — and the hosted runners do not ship it; without that step the build stops at
-`MSB8041` and only the engine and its libraries are ever checked. DirectX stays off (`SE1_D3D` is
-not defined), so MFC is the only component the runner has to be given.
-
-It builds `All.sln` rather than individual projects, and that matters. The
+It builds `All.sln /t:Engine` rather than the bare project, and both halves of that matter. The
 Engine project puts `Tools.Win32` (bison, flex) and `Bin` (ecc) on `ExecutablePath` via
 `$(SolutionDir)`, which a bare `.vcxproj` build leaves pointing at the project's own directory —
 so none of those tools resolve. The solution also declares the dependency on Ecc, so the entity
 class compiler is built before the code generation step that needs it.
+
+A second step builds the rest of the solution and is **not** gated. That is a limitation of the
+runner image, not of the code: the game logic, the editors and the small tools need MFC for the
+`v143` toolset these projects pin, and the hosted runner carries Visual Studio 18, whose ATLMFC
+component installs MFC for its own newer toolset. `MSB8041` stands even after installing it, and
+the version-pinned component IDs that would fix it are too brittle to depend on. Those ten
+projects therefore compile locally in Visual Studio but are unverified in CI.
+
+One trap worth knowing, because it cost a wrong conclusion here: a `continue-on-error` step
+reports `conclusion: success` even when the command failed, and this API does not expose the
+step's real `outcome`. Read the log, not the status. The informational step prints an errors-only
+summary for exactly that reason.
 
 Getting there took four runs, and each one found something real. The pre-build event deleted its
 previous output with a bare `del`, which fails on a clean checkout because the file is not there
