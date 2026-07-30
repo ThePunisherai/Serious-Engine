@@ -160,6 +160,12 @@ that directory and is strongly recommended.
 | `export_texture` | Decode a frame to PNG. |
 | `modernize_textures` | Run the modernization pipeline. |
 | `export_unreal` | Build the Unreal import package. |
+| `create_map` | Start a new map definition. |
+| `map_add_room` | Add a hollow or solid box-shaped room. |
+| `map_add_light` | Add a point, spot, directional or rect light. |
+| `map_add_prop` | Place a static mesh. |
+| `map_describe` | Summarize rooms, lights, props, bounds and render settings. |
+| `export_map_unreal` | Build the Unreal level package. |
 
 Textures inside an archive are addressed as `archive.gro::entry/path.tex`.
 
@@ -178,6 +184,52 @@ Client configuration:
 
 The server refreshes `%TEMP%/GameStudioMcp.heartbeat` every few seconds; the app polls it to show
 a live status badge, the same signal XFS Studio uses.
+
+## Authoring maps
+
+Maps are built up a piece at a time through the MCP tools, each call reading the file back,
+appending, and saving — so a client can author a level over a conversation without holding it in
+memory:
+
+```
+create_map        map=arena.map.json name=Arena playerStart=[0,0,120]
+map_add_room      map=arena.map.json name=Main center=[0,0,0] size=[2000,2000,600]
+map_add_light     map=arena.map.json name=Key kind=Spot position=[0,0,250] intensity=12000
+export_map_unreal map=arena.map.json output=./unreal
+```
+
+The export writes `level.json` plus a `build_level.py` that Unreal runs in-editor. Rooms are
+decomposed into slabs in C# rather than in the script, so the geometry is testable without an
+Unreal install; the script only spawns what the manifest describes. Actors it creates are tagged
+`GameStudio`, so re-running replaces them and leaves hand-placed actors alone.
+
+A hollow room becomes a shell of six slabs. The X-facing walls span the full depth and the Y-facing
+ones are inset between them, so no two slabs occupy the same space. `openFaces` drops named faces
+so rooms can connect. If the walls are too thick to leave an interior, the room falls back to a
+solid block rather than emitting inside-out geometry.
+
+## About ray tracing
+
+Real-time ray tracing is not something that can be added to this engine. It has no shader pipeline
+at all — the renderer is fixed-function OpenGL 1.x and Direct3D 8 multitexturing. Ray tracing needs
+a modern API, acceleration structures and denoising, which means replacing the renderer rather than
+extending it.
+
+Baked ray-traced lighting looked promising, since the engine already ships a ray caster in
+`WorldRayCasting.cpp` and bakes static light into lightmaps. It does not work either, and the
+reason is worth recording so nobody re-treads it. `CCastRay` has two modes. Given an origin entity
+it walks sectors, which is fast — but it seeds that walk from `AddSectorsAroundEntity`, which reads
+the sectors an entity *stands in*; a zoning brush is not in its own sectors, so the walk starts
+empty and nothing is occluded. Without an origin entity it calls `TestWholeWorld`, which iterates
+every entity, every sector and every polygon in the level. That is O(level) per ray, against the
+millions of rays an ambient-occlusion bake needs. The caster is built for a handful of gameplay
+rays per frame, not for baking. Doing this properly needs a dedicated BVH over the level geometry,
+which is a real subsystem rather than a patch.
+
+So ray tracing lives on the Unreal side, where it is genuinely real-time: the exported level
+carries a post-process volume configured for Lumen global illumination and Lumen reflections, with
+`hardwareRayTracing` asking Lumen to trace against real triangles instead of distance-field
+proxies. Lights default to movable so they participate in those bounces.
 
 ## License
 

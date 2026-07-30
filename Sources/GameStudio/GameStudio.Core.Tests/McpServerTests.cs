@@ -75,7 +75,8 @@ public class McpServerTests : IDisposable
         var tools = Assert.Single(responses)["result"]!["tools"]!.AsArray();
 
         Assert.Equal(
-            ["engine_overview", "list_archive", "texture_info", "export_texture", "modernize_textures", "export_unreal"],
+            ["engine_overview", "list_archive", "texture_info", "export_texture", "modernize_textures", "export_unreal",
+             "create_map", "map_add_room", "map_add_light", "map_add_prop", "map_describe", "export_map_unreal"],
             tools.Select(t => t!["name"]!.GetValue<string>()));
 
         foreach (var tool in tools)

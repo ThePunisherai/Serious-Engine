@@ -5,6 +5,7 @@ using GameStudio.Core.Formats;
 using GameStudio.Core.Imaging;
 using GameStudio.Core.Modernize;
 using GameStudio.Core.Unreal;
+using GameStudio.Core.Worlds;
 
 namespace GameStudio.Mcp;
 
@@ -83,6 +84,86 @@ public sealed class ToolCatalog
                 ["contentRoot"] = Property("string", "Unreal content path for the imported assets. Defaults to /Game/SeriousEngine."),
             },
             required: ["modernizedDirectory", "output"]),
+
+        Tool("create_map",
+            "Start a new map definition and write it to disk. Rooms, lights and props are added afterwards with the map_add_* tools.",
+            new JsonObject
+            {
+                ["map"] = Property("string", "Path of the .map.json file to create."),
+                ["name"] = Property("string", "Name of the level."),
+                ["description"] = Property("string", "Optional description of the level."),
+                ["playerStart"] = Property("array", "Player start position as [x, y, z] in centimetres. Defaults to [0, 0, 100]."),
+                ["daylight"] = Property("boolean", "Spawn a sun, sky light and sky atmosphere. Defaults to true."),
+                ["hardwareRayTracing"] = Property("boolean", "Trace Lumen against real triangles rather than distance fields. Defaults to true."),
+                ["lumenQuality"] = Property("number", "Lumen final-gather quality multiplier. 1 is the Unreal default, 2 roughly doubles the ray budget."),
+                ["overwrite"] = Property("boolean", "Replace an existing file. Defaults to false."),
+            },
+            required: ["map", "name"]),
+
+        Tool("map_add_room",
+            "Add a box-shaped room to a map. Hollow rooms become a shell of six slabs; solid ones a single filled block.",
+            new JsonObject
+            {
+                ["map"] = Property("string", "Path to the .map.json file."),
+                ["name"] = Property("string", "Name of the room."),
+                ["center"] = Property("array", "Centre as [x, y, z] in centimetres."),
+                ["size"] = Property("array", "Outer dimensions as [x, y, z] in centimetres."),
+                ["hollow"] = Property("boolean", "Build a room you can stand in rather than a solid block. Defaults to true."),
+                ["wallThickness"] = Property("number", "Shell thickness for hollow rooms. Defaults to 20."),
+                ["material"] = Property("string", "Material asset name, resolved against the export content root."),
+                ["openFaces"] = Property("array", "Faces to leave open so rooms connect: Floor, Ceiling, North, South, East, West."),
+            },
+            required: ["map", "name"]),
+
+        Tool("map_add_light",
+            "Add a light to a map. Dynamic lights participate in Lumen's ray-traced bounces.",
+            new JsonObject
+            {
+                ["map"] = Property("string", "Path to the .map.json file."),
+                ["name"] = Property("string", "Name of the light."),
+                ["kind"] = Property("string", "Point, Spot, Directional or Rect. Defaults to Point."),
+                ["position"] = Property("array", "Position as [x, y, z] in centimetres."),
+                ["rotation"] = Property("array", "Rotation as [pitch, yaw, roll] in degrees."),
+                ["intensity"] = Property("number", "Candelas for point/spot lights, lux for directional ones."),
+                ["color"] = Property("array", "Linear colour as [r, g, b], each 0-1. Defaults to white."),
+                ["radius"] = Property("number", "Attenuation radius in centimetres. Defaults to 1000."),
+                ["coneAngle"] = Property("number", "Outer cone angle in degrees, spot lights only."),
+                ["castShadows"] = Property("boolean", "Defaults to true."),
+                ["dynamic"] = Property("boolean", "Movable rather than static, so Lumen lights it dynamically. Defaults to true."),
+            },
+            required: ["map", "name"]),
+
+        Tool("map_add_prop",
+            "Place a static mesh in a map, either an Unreal built-in shape or an imported asset.",
+            new JsonObject
+            {
+                ["map"] = Property("string", "Path to the .map.json file."),
+                ["name"] = Property("string", "Name of the placed actor."),
+                ["mesh"] = Property("string", "Static mesh asset path, e.g. /Engine/BasicShapes/Cylinder."),
+                ["position"] = Property("array", "Position as [x, y, z] in centimetres."),
+                ["rotation"] = Property("array", "Rotation as [pitch, yaw, roll] in degrees."),
+                ["scale"] = Property("array", "Scale as [x, y, z]. Defaults to [1, 1, 1]."),
+                ["material"] = Property("string", "Material asset name to override the mesh's own."),
+            },
+            required: ["map", "name", "mesh"]),
+
+        Tool("map_describe",
+            "Summarize a map: its rooms, lights, props, bounds and rendering settings.",
+            new JsonObject
+            {
+                ["map"] = Property("string", "Path to the .map.json file."),
+            },
+            required: ["map"]),
+
+        Tool("export_map_unreal",
+            "Turn a map definition into an Unreal Engine 5 level package: a manifest plus a Python script that builds the geometry, lights and a post-process volume configured for Lumen.",
+            new JsonObject
+            {
+                ["map"] = Property("string", "Path to the .map.json file."),
+                ["output"] = Property("string", "Directory to write build_level.py and level.json into."),
+                ["contentRoot"] = Property("string", "Unreal content path materials resolve against. Defaults to /Game/SeriousEngine."),
+            },
+            required: ["map", "output"]),
     ];
 
     public async Task<JsonNode> CallAsync(string name, JsonObject arguments, CancellationToken cancellationToken)
@@ -97,11 +178,18 @@ public sealed class ToolCatalog
                 "export_texture" => ExportTexture(arguments),
                 "modernize_textures" => await Task.Run(() => ModernizeTextures(arguments, cancellationToken), cancellationToken),
                 "export_unreal" => ExportUnreal(arguments),
+                "create_map" => CreateMap(arguments),
+                "map_add_room" => MapAddRoom(arguments),
+                "map_add_light" => MapAddLight(arguments),
+                "map_add_prop" => MapAddProp(arguments),
+                "map_describe" => MapDescribe(arguments),
+                "export_map_unreal" => ExportMapUnreal(arguments),
                 _ => throw new ArgumentException($"Unknown tool '{name}'."),
             };
             return Content(text, isError: false);
         }
-        catch (Exception ex) when (ex is ArgumentException or IOException or InvalidDataException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is ArgumentException or IOException or InvalidDataException
+                                        or UnauthorizedAccessException or JsonException)
         {
             return Content($"{name} failed: {ex.Message}", isError: true);
         }
@@ -290,6 +378,169 @@ public sealed class ToolCatalog
         }.ToJsonString(GameStudioJson.Options);
     }
 
+    private string CreateMap(JsonObject arguments)
+    {
+        string path = ResolvePath(RequireString(arguments, "map"));
+        if (File.Exists(path) && OptionalBool(arguments, "overwrite") != true)
+            throw new ArgumentException($"'{path}' already exists. Pass overwrite to replace it.");
+
+        var environment = new MapEnvironment
+        {
+            Daylight = OptionalBool(arguments, "daylight") ?? true,
+            HardwareRayTracing = OptionalBool(arguments, "hardwareRayTracing") ?? true,
+            LumenQuality = OptionalDouble(arguments, "lumenQuality") ?? 2.0,
+        };
+
+        var map = new MapDefinition
+        {
+            Name = RequireString(arguments, "name"),
+            Description = OptionalString(arguments, "description"),
+            PlayerStart = ReadVec3(arguments, "playerStart") ?? new Vec3(0, 0, 100),
+            Environment = environment,
+        };
+        map.Save(path);
+
+        return $"Created map '{map.Name}' at {path}. "
+             + $"Lumen GI {(environment.LumenGlobalIllumination ? "on" : "off")}, "
+             + $"hardware ray tracing {(environment.HardwareRayTracing ? "on" : "off")}, "
+             + $"quality {environment.LumenQuality:0.##}.";
+    }
+
+    private string MapAddRoom(JsonObject arguments)
+    {
+        string path = ResolvePath(RequireString(arguments, "map"));
+        MapDefinition map = MapDefinition.Load(path);
+
+        var room = new MapRoom
+        {
+            Name = RequireString(arguments, "name"),
+            Center = ReadVec3(arguments, "center") ?? Vec3.Zero,
+            Size = ReadVec3(arguments, "size") ?? new Vec3(800, 800, 400),
+            Hollow = OptionalBool(arguments, "hollow") ?? true,
+            WallThickness = OptionalDouble(arguments, "wallThickness") ?? 20,
+            Material = OptionalString(arguments, "material"),
+            OpenFaces = ReadStrings(arguments, "openFaces"),
+        };
+
+        map = map.WithRoom(room);
+        map.Save(path);
+
+        int slabs = UnrealLevelExporter.BuildSlabs(room).Count();
+        return $"Added room '{room.Name}' at {room.Center}, size {room.Size} "
+             + $"({(room.Hollow ? "hollow" : "solid")}, {slabs} slab{(slabs == 1 ? "" : "s")}). "
+             + $"Map now has {map.Rooms.Count} room{(map.Rooms.Count == 1 ? "" : "s")}.";
+    }
+
+    private string MapAddLight(JsonObject arguments)
+    {
+        string path = ResolvePath(RequireString(arguments, "map"));
+        MapDefinition map = MapDefinition.Load(path);
+
+        string kindText = OptionalString(arguments, "kind") ?? nameof(LightKind.Point);
+        if (!Enum.TryParse(kindText, ignoreCase: true, out LightKind kind))
+            throw new ArgumentException($"Unknown light kind '{kindText}'. Use Point, Spot, Directional or Rect.");
+
+        Vec3? colour = ReadVec3(arguments, "color");
+        var light = new MapLight
+        {
+            Name = RequireString(arguments, "name"),
+            Kind = kind,
+            Position = ReadVec3(arguments, "position") ?? Vec3.Zero,
+            Rotation = ReadRotator(arguments, "rotation"),
+            Intensity = OptionalDouble(arguments, "intensity") ?? 5000,
+            Color = colour is { } c ? new Rgb(c.X, c.Y, c.Z) : Rgb.White,
+            Radius = OptionalDouble(arguments, "radius") ?? 1000,
+            ConeAngle = OptionalDouble(arguments, "coneAngle") ?? 44,
+            CastShadows = OptionalBool(arguments, "castShadows") ?? true,
+            Dynamic = OptionalBool(arguments, "dynamic") ?? true,
+        };
+
+        map = map.WithLight(light);
+        map.Save(path);
+
+        return $"Added {light.Kind} light '{light.Name}' at {light.Position}, "
+             + $"intensity {light.Intensity:0.##}, {(light.Dynamic ? "movable" : "static")}. "
+             + $"Map now has {map.Lights.Count} light{(map.Lights.Count == 1 ? "" : "s")}.";
+    }
+
+    private string MapAddProp(JsonObject arguments)
+    {
+        string path = ResolvePath(RequireString(arguments, "map"));
+        MapDefinition map = MapDefinition.Load(path);
+
+        var prop = new MapProp
+        {
+            Name = RequireString(arguments, "name"),
+            Mesh = RequireString(arguments, "mesh"),
+            Position = ReadVec3(arguments, "position") ?? Vec3.Zero,
+            Rotation = ReadRotator(arguments, "rotation"),
+            Scale = ReadVec3(arguments, "scale") ?? new Vec3(1, 1, 1),
+            Material = OptionalString(arguments, "material"),
+        };
+
+        map = map.WithProp(prop);
+        map.Save(path);
+
+        return $"Placed '{prop.Name}' ({prop.Mesh}) at {prop.Position}. "
+             + $"Map now has {map.Props.Count} prop{(map.Props.Count == 1 ? "" : "s")}.";
+    }
+
+    private string MapDescribe(JsonObject arguments)
+    {
+        string path = ResolvePath(RequireString(arguments, "map"));
+        MapDefinition map = MapDefinition.Load(path);
+        (Vec3 Min, Vec3 Max)? bounds = map.Bounds();
+
+        return new JsonObject
+        {
+            ["name"] = map.Name,
+            ["description"] = map.Description,
+            ["path"] = path,
+            ["playerStart"] = map.PlayerStart.ToString(),
+            ["bounds"] = bounds is { } b ? $"{b.Min} to {b.Max}" : null,
+            ["roomCount"] = map.Rooms.Count,
+            ["slabCount"] = map.Rooms.Sum(r => UnrealLevelExporter.BuildSlabs(r).Count()),
+            ["lightCount"] = map.Lights.Count,
+            ["propCount"] = map.Props.Count,
+            ["environment"] = new JsonObject
+            {
+                ["lumenGlobalIllumination"] = map.Environment.LumenGlobalIllumination,
+                ["lumenReflections"] = map.Environment.LumenReflections,
+                ["hardwareRayTracing"] = map.Environment.HardwareRayTracing,
+                ["lumenQuality"] = map.Environment.LumenQuality,
+                ["daylight"] = map.Environment.Daylight,
+            },
+            ["rooms"] = new JsonArray([.. map.Rooms.Select(r => (JsonNode)new JsonObject
+            {
+                ["name"] = r.Name,
+                ["center"] = r.Center.ToString(),
+                ["size"] = r.Size.ToString(),
+                ["hollow"] = r.Hollow,
+            })]),
+            ["lights"] = new JsonArray([.. map.Lights.Select(l => (JsonNode)new JsonObject
+            {
+                ["name"] = l.Name,
+                ["kind"] = l.Kind.ToString(),
+                ["position"] = l.Position.ToString(),
+                ["intensity"] = l.Intensity,
+            })]),
+        }.ToJsonString(GameStudioJson.Options);
+    }
+
+    private string ExportMapUnreal(JsonObject arguments)
+    {
+        string path = ResolvePath(RequireString(arguments, "map"));
+        string output = ResolvePath(RequireString(arguments, "output"));
+        MapDefinition map = MapDefinition.Load(path);
+
+        UnrealLevelExportResult result = UnrealLevelExporter.Export(
+            map, output, OptionalString(arguments, "contentRoot") ?? "/Game/SeriousEngine");
+
+        return $"Exported '{map.Name}': {result.SlabCount} slabs, {result.LightCount} lights, "
+             + $"{result.PropCount} props.\nScript: {result.ScriptPath}\nManifest: {result.ManifestPath}\n"
+             + "Run it from the Unreal editor with: py \"" + result.ScriptPath + "\"";
+    }
+
     /// <summary>
     /// Loads a texture from a plain path, or from inside an archive using
     /// <c>archive.gro::entry/path.tex</c>.
@@ -337,6 +588,35 @@ public sealed class ToolCatalog
         arguments[name] is { } node && node.GetValueKind() is JsonValueKind.True or JsonValueKind.False
             ? node.GetValue<bool>()
             : null;
+
+    private static double? OptionalDouble(JsonObject arguments, string name) =>
+        arguments[name] is { } node && node.GetValueKind() == JsonValueKind.Number ? node.GetValue<double>() : null;
+
+    /// <summary>Reads a <c>[x, y, z]</c> array, or null when the argument is absent.</summary>
+    private static Vec3? ReadVec3(JsonObject arguments, string name)
+    {
+        if (arguments[name] is not JsonArray array) return null;
+        if (array.Count != 3)
+            throw new ArgumentException($"'{name}' must have exactly three numbers, got {array.Count}.");
+
+        double At(int i) => array[i]?.GetValueKind() == JsonValueKind.Number
+            ? array[i]!.GetValue<double>()
+            : throw new ArgumentException($"'{name}' element {i} is not a number.");
+
+        return new Vec3(At(0), At(1), At(2));
+    }
+
+    /// <summary>Reads a <c>[pitch, yaw, roll]</c> array, defaulting to no rotation.</summary>
+    private static Rotator ReadRotator(JsonObject arguments, string name) =>
+        ReadVec3(arguments, name) is { } v ? new Rotator(v.X, v.Y, v.Z) : new Rotator();
+
+    private static string[] ReadStrings(JsonObject arguments, string name)
+    {
+        if (arguments[name] is not JsonArray array) return [];
+        return [.. array.Select((node, i) => node?.GetValueKind() == JsonValueKind.String
+            ? node!.GetValue<string>()
+            : throw new ArgumentException($"'{name}' element {i} is not a string."))];
+    }
 
     private static JsonObject Property(string type, string description) =>
         new() { ["type"] = type, ["description"] = description };
