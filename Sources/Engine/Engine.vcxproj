@@ -137,7 +137,7 @@ copy Debug\$(TargetName).lib $(SolutionDir)..\Bin\Debug\ &gt;nul</Command>
       <Outputs>$(SolutionDir)..\Bin\Debug\$(TargetName).dll;%(Outputs)</Outputs>
     </CustomBuildStep>
     <PreBuildEvent>
-      <Command>del $(SolutionDir)..\Bin\Debug\$(TargetName).dll /q &gt;nul</Command>
+      <Command>if exist "$(SolutionDir)..\Bin\Debug\$(TargetName).dll" del "$(SolutionDir)..\Bin\Debug\$(TargetName).dll" /q &gt;nul</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -198,7 +198,7 @@ copy Release\$(TargetName).lib $(SolutionDir)..\Bin\ &gt;nul</Command>
       <Outputs>$(SolutionDir)..\Bin\$(TargetName).dll;%(Outputs)</Outputs>
     </CustomBuildStep>
     <PreBuildEvent>
-      <Command>del $(SolutionDir)..\Bin\$(TargetName).dll /q &gt;nul</Command>
+      <Command>if exist "$(SolutionDir)..\Bin\$(TargetName).dll" del "$(SolutionDir)..\Bin\$(TargetName).dll" /q &gt;nul</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">

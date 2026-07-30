@@ -71,6 +71,15 @@ Sources/EntitiesMP/*.cpp
 Sources/Engine/Classes/*.h
 Sources/Engine/Classes/*.cpp
 
+# .NET build output. The *.dll and *.exe rules above catch the binaries, but obj/ also fills up
+# with generated sources, caches and asset manifests that would otherwise be committed.
+#
+# Scoped to GameStudio rather than written as a bare bin//obj/ pair: the repository root has its
+# own Bin/ holding the game's output layout, and Bin/Debug/empty is tracked on purpose to keep
+# that directory alive. A blanket rule would quietly swallow it.
+Sources/GameStudio/**/bin/
+Sources/GameStudio/**/obj/
+
 # Other generated files:
 Sources/Engine/Ska/smcScan.cpp
 Sources/Engine/Ska/smcPars.h
