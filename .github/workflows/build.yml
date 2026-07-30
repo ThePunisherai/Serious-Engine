@@ -34,23 +34,35 @@ jobs:
     name: Engine and tools (C++)
     runs-on: windows-latest
     # This started out informational, on the assumption that a 2013-era Win32 codebase would not
-    # build unattended. It does: with the toolset retargeted to v143 and the pre-build event
-    # guarded, all twenty projects compile and link from a clean checkout. So it is a real gate
-    # -- a break here is a break, not a curiosity. DirectX stays off (SE1_D3D is not defined),
-    # which is why no external SDK is needed.
+    # build unattended. With the toolset retargeted to v143, the pre-build event guarded and MFC
+    # installed, it does -- so it is a real gate. DirectX stays off (SE1_D3D is not defined),
+    # which is why no external SDK is needed beyond MFC.
     steps:
       - uses: actions/checkout@v4
 
       - uses: microsoft/setup-msbuild@v2
 
-      # Built through the solution rather than as a bare project, for two reasons that both bite.
+      # Several projects need MFC -- the game logic in EntitiesMP, the editors, and the small
+      # tools -- and the hosted runners do not ship it. Without this the build stops at MSB8041
+      # and only the engine and its libraries ever get checked.
+      - name: Install MFC
+        run: |
+          $root = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+          $path = & "$root\vswhere.exe" -latest -property installationPath
+          $p = Start-Process -FilePath "$root\vs_installer.exe" -Wait -PassThru -ArgumentList @(
+            "modify", "--installPath", "`"$path`"",
+            "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC",
+            "--quiet", "--norestart", "--nocache")
+          # 3010 is success with a reboot pending, which does not matter on a one-shot runner.
+          if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) {
+            throw "Visual Studio installer exited with $($p.ExitCode)"
+          }
+
+      # Built through the solution rather than as bare projects, for two reasons that both bite.
       # $(SolutionDir) is what the Engine project uses to find Tools.Win32 (bison, flex) and Bin
-      # (ecc) -- building the .vcxproj alone points it at Sources/Engine and none of them resolve.
-      # And the solution declares Engine's dependency on Ecc, so the entity class compiler gets
-      # built before the code generation step that needs it.
-      # The whole solution, not just the engine: the toolset retarget touched all twenty projects,
-      # and a break in the game or the editors matters as much as one in the engine. All twenty do
-      # build on a hosted runner, MFC editors included, so this is gated rather than informational.
+      # (ecc) -- building a .vcxproj alone points it at Sources/Engine and none of them resolve.
+      # And the solution declares the dependency on Ecc, so the entity class compiler gets built
+      # before the code generation step that needs it.
       - name: Build
         run: >
           msbuild Sources/All.sln

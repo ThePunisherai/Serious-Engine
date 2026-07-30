@@ -30,8 +30,12 @@ to be green, and it is what actually verifies the C# in this repository.
 The **Engine and tools** job builds all twenty C++ projects — engine, game, editors and tools —
 and is a real gate. It began as an informational job on the assumption that a 2013-era Win32
 codebase would not build unattended, but with the toolset retargeted and the pre-build event
-guarded, the whole solution compiles and links from a clean checkout, MFC editors included.
-DirectX stays off (`SE1_D3D` is not defined), which is why it needs no external SDK.
+guarded, it does.
+
+It installs MFC first. Several projects need it — the game logic in `EntitiesMP`, the editors, and
+the small tools — and the hosted runners do not ship it; without that step the build stops at
+`MSB8041` and only the engine and its libraries are ever checked. DirectX stays off (`SE1_D3D` is
+not defined), so MFC is the only component the runner has to be given.
 
 It builds `All.sln` rather than individual projects, and that matters. The
 Engine project puts `Tools.Win32` (bison, flex) and `Bin` (ecc) on `ExecutablePath` via
