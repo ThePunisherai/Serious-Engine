@@ -171,7 +171,7 @@ changes how every existing game looks.
 gfx_bPostProcessing = 1;    // master switch, off by default
 gfx_fExposure       = 1.0;  // 0.1 - 8
 gfx_iTonemap        = 1;    // 0 = off, 1 = filmic (ACES)
-gfx_fSaturation     = 1.0;  // 0 = greyscale, 1 = unchanged
+gfx_fPostSaturation = 1.0;  // 0 = greyscale, 1 = unchanged
 gfx_fBloomThreshold = 0.75; // brightness where bleed starts
 gfx_fBloomIntensity = 0.35; // 0 disables the bloom passes entirely
 gfx_bFXAA           = 1;    // edge-directed antialiasing

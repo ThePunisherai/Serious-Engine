@@ -23,6 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Graphics/Color.h>
 #include <Engine/Graphics/Vertex.h>
 #include <Engine/Base/Console.h>
+#include <Engine/Base/Translation.h>
 #include <Engine/Math/Functions.h>
 
 // exposed controls, declared and registered in GfxLibrary.cpp
@@ -30,7 +31,7 @@ extern INDEX gfx_bPostProcessing;
 extern INDEX gfx_bFXAA;
 extern INDEX gfx_iTonemap;
 extern FLOAT gfx_fExposure;
-extern FLOAT gfx_fSaturation;
+extern FLOAT gfx_fPostSaturation;
 extern FLOAT gfx_fBloomThreshold;
 extern FLOAT gfx_fBloomIntensity;
 extern INDEX gfx_bSSAO;
@@ -66,10 +67,12 @@ typedef void   (__stdcall *PFN_Uniform1i)(GLint, GLint);
 typedef void   (__stdcall *PFN_Uniform1f)(GLint, GLfloat);
 typedef void   (__stdcall *PFN_Uniform2f)(GLint, GLfloat, GLfloat);
 
-#define GL_FRAGMENT_SHADER_ 0x8B30
-#define GL_VERTEX_SHADER_   0x8B31
-#define GL_COMPILE_STATUS_  0x8B81
-#define GL_LINK_STATUS_     0x8B82
+// Cast, because GLenum in gl_types.h is an enumeration type rather than an unsigned int,
+// and C++ will not convert a plain integer constant to one implicitly.
+#define GL_FRAGMENT_SHADER_ ((GLenum)0x8B30)
+#define GL_VERTEX_SHADER_   ((GLenum)0x8B31)
+#define GL_COMPILE_STATUS_  ((GLenum)0x8B81)
+#define GL_LINK_STATUS_     ((GLenum)0x8B82)
 
 static PFN_CreateShader       pCreateShader       = NULL;
 static PFN_ShaderSource       pShaderSource       = NULL;
@@ -524,7 +527,7 @@ void PostProcessFrame(void)
 
   // clamp the controls the same way every other gfx cvar is clamped
   gfx_fExposure       = Clamp(gfx_fExposure,       0.1f, 8.0f);
-  gfx_fSaturation     = Clamp(gfx_fSaturation,     0.0f, 3.0f);
+  gfx_fPostSaturation     = Clamp(gfx_fPostSaturation,     0.0f, 3.0f);
   gfx_fBloomThreshold = Clamp(gfx_fBloomThreshold, 0.0f, 4.0f);
   gfx_fBloomIntensity = Clamp(gfx_fBloomIntensity, 0.0f, 4.0f);
   gfx_iTonemap        = Clamp(gfx_iTonemap,        0L,   1L);
@@ -616,7 +619,7 @@ void PostProcessFrame(void)
   pUniform1f(pGetUniformLocation(_uiCompositeProgram, "fExposure"), gfx_fExposure);
   pUniform1f(pGetUniformLocation(_uiCompositeProgram, "fBloomIntensity"),
              bBloom ? gfx_fBloomIntensity : 0.0f);
-  pUniform1f(pGetUniformLocation(_uiCompositeProgram, "fSaturation"), gfx_fSaturation);
+  pUniform1f(pGetUniformLocation(_uiCompositeProgram, "fSaturation"), gfx_fPostSaturation);
   pUniform1i(pGetUniformLocation(_uiCompositeProgram, "iTonemap"), gfx_iTonemap);
   gfxSetTextureUnit(0);
   DrawFullScreenQuad();
