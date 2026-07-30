@@ -36,6 +36,22 @@ with this program; if not, write to the Free Software Foundation, Inc.,
  * driver has no shader support.
  */
 
+/*
+ * The scene's projection, recorded by ogl_SetFrustum as the world is drawn.
+ *
+ * Ambient occlusion has to turn a depth sample back into a view-space position, which needs the
+ * frustum the scene was drawn with. It cannot be read back at the end of the frame: the 2D overlay
+ * is drawn after the world and leaves its own orthographic projection behind.
+ *
+ * The tangents are half-extents at unit depth, so a pixel at normalized device coordinates
+ * (x, y) and view depth z sits at (x * tanX * z, y * tanY * z, -z).
+ */
+extern FLOAT _fPostSceneNear;
+extern FLOAT _fPostSceneFar;
+extern FLOAT _fPostSceneTanX;
+extern FLOAT _fPostSceneTanY;
+extern BOOL  _bPostSceneFrustumValid;
+
 // Runs the post-processing chain over the finished frame, immediately before it is presented.
 // Does nothing unless enabled, the current API is OpenGL, and the driver supports GLSL.
 void PostProcessFrame(void);

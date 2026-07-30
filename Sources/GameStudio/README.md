@@ -142,6 +142,9 @@ gfx_fSaturation     = 1.0;  // 0 = greyscale, 1 = unchanged
 gfx_fBloomThreshold = 0.75; // brightness where bleed starts
 gfx_fBloomIntensity = 0.35; // 0 disables the bloom passes entirely
 gfx_bFXAA           = 1;    // edge-directed antialiasing
+gfx_bSSAO           = 1;    // depth-based ambient occlusion
+gfx_fSSAORadius     = 1.0;  // world units
+gfx_fSSAOIntensity  = 1.0;
 ```
 
 The frame is read back with `glCopyTexSubImage2D` instead of being rendered into a framebuffer
@@ -155,10 +158,28 @@ Worth being clear about one limit: the frame is captured from an 8-bit back buff
 tonemapping and bloom applied to LDR data. It is a look, not true HDR — real HDR would mean the
 scene renderer writing float targets, which is the renderer rewrite this deliberately avoids.
 
-Screen-space ambient occlusion is not in the chain. It needs the depth buffer plus the scene's
-projection matrix to reconstruct position, and by the time this stage runs the projection has been
-replaced by the 2D overlay's. Capturing it properly means hooking where the scene projection is
-set, which is scene-renderer surgery rather than a post pass.
+### Ambient occlusion
+
+Occlusion needs to turn a depth sample back into a view-space position, which needs the frustum the
+scene was drawn with — and that cannot be read back at the end of the frame, because the 2D overlay
+is drawn after the world and leaves its own orthographic projection behind. It cannot borrow the
+engine's `GFX_fLast*` cache either, for the same reason: `ogl_SetOrtho` writes those too. So
+`ogl_SetFrustum` records the scene projection as the world is drawn, before its own cache check so
+an unchanged frustum still refreshes it. The flag is cleared once the chain consumes it — a frame
+that draws no world sits occlusion out rather than reusing a stale projection.
+
+The kernel is a spiral generated from the loop counter rather than read out of a const array,
+because indexing an array with a loop variable is not something GLSL 110 guarantees. Each pixel
+rotates the spiral by a hash of its coordinates, trading banding for noise, and the two blur passes
+turn that noise back into a smooth term. Occlusion resolves at half resolution and multiplies into
+the scene *before* bloom, so an unlit corner darkens instead of glowing.
+
+If the driver refuses a depth texture, occlusion switches itself off for the session and the rest
+of the chain carries on.
+
+The tuning defaults — radius, intensity, the 0.02 self-occlusion bias, the 0.05 FXAA contrast
+threshold — are reasoned starting points, not measured ones. They want a real build and a real
+scene to settle.
 
 ## Editor integration
 

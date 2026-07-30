@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <Engine/Graphics/ViewPort.h>
 
 #include <Engine/Graphics/GfxProfile.h>
+#include <Engine/Graphics/GfxPostProcess.h>
 #include <Engine/Base/Statistics_internal.h>
 
 //#include <d3dx8math.h>

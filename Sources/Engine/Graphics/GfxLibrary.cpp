@@ -257,6 +257,9 @@ extern FLOAT gfx_fExposure        = 1.0f;
 extern FLOAT gfx_fSaturation      = 1.0f;
 extern FLOAT gfx_fBloomThreshold  = 0.75f;
 extern FLOAT gfx_fBloomIntensity  = 0.35f;
+extern INDEX gfx_bSSAO            = TRUE;   // only ever runs when post-processing is on
+extern FLOAT gfx_fSSAORadius      = 1.0f;   // world units
+extern FLOAT gfx_fSSAOIntensity   = 1.0f;
 
 extern INDEX gfx_bDecoratedText   = TRUE;
 extern INDEX gfx_bClearScreen = FALSE;
@@ -1174,6 +1177,9 @@ void CGfxLibrary::Init(void)
   _pShell->DeclareSymbol("persistent user FLOAT gfx_fSaturation;",       &gfx_fSaturation);
   _pShell->DeclareSymbol("persistent user FLOAT gfx_fBloomThreshold;",   &gfx_fBloomThreshold);
   _pShell->DeclareSymbol("persistent user FLOAT gfx_fBloomIntensity;",   &gfx_fBloomIntensity);
+  _pShell->DeclareSymbol("persistent user INDEX gfx_bSSAO;",             &gfx_bSSAO);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fSSAORadius;",       &gfx_fSSAORadius);
+  _pShell->DeclareSymbol("persistent user FLOAT gfx_fSSAOIntensity;",    &gfx_fSSAOIntensity);
   _pShell->DeclareSymbol("     const user INDEX gfx_ctMonitors;",        &gfx_ctMonitors);
   _pShell->DeclareSymbol("     const user INDEX gfx_bMultiMonDisabled;", &gfx_bMultiMonDisabled);
 

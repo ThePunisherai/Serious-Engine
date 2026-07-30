@@ -33,6 +33,16 @@ extern FLOAT gfx_fExposure;
 extern FLOAT gfx_fSaturation;
 extern FLOAT gfx_fBloomThreshold;
 extern FLOAT gfx_fBloomIntensity;
+extern INDEX gfx_bSSAO;
+extern FLOAT gfx_fSSAORadius;
+extern FLOAT gfx_fSSAOIntensity;
+
+// the scene projection, filled in by ogl_SetFrustum
+FLOAT _fPostSceneNear  = 0.0f;
+FLOAT _fPostSceneFar   = 0.0f;
+FLOAT _fPostSceneTanX  = 0.0f;
+FLOAT _fPostSceneTanY  = 0.0f;
+BOOL  _bPostSceneFrustumValid = FALSE;
 
 
 // GLSL entry points. These are GL 2.0 rather than extensions, but the engine links against the
@@ -91,6 +101,12 @@ static GLuint _uiBloomB       = 0;   // half-resolution bloom pong
 static PIX _pixWidth  = 0;
 static PIX _pixHeight = 0;
 
+static GLuint _uiDepthTexture = 0;   // scene depth, full resolution
+static GLuint _uiAoA          = 0;   // half-resolution occlusion ping
+static GLuint _uiAoB          = 0;   // half-resolution occlusion pong
+static BOOL   _bDepthUsable   = TRUE; // cleared if the driver refuses a depth texture
+
+static GLuint _uiSsaoProgram     = 0;
 static GLuint _uiBrightProgram   = 0;
 static GLuint _uiBlurProgram     = 0;
 static GLuint _uiCompositeProgram = 0;
@@ -104,6 +120,56 @@ static const char *_strVertexShader =
   "void main() {\n"
   "  gl_TexCoord[0] = gl_MultiTexCoord0;\n"
   "  gl_Position = ftransform();\n"
+  "}\n";
+
+// Screen-space ambient occlusion from the depth buffer.
+//
+// The kernel is generated as a spiral from the loop counter rather than read out of a const array,
+// because indexing an array with a loop variable is not something GLSL 110 guarantees. Each pixel
+// rotates the spiral by a hash of its coordinates, which trades banding for noise -- the blur pass
+// afterwards is what turns that noise back into a smooth term.
+static const char *_strSsaoShader =
+  "#version 110\n"
+  "uniform sampler2D texDepth;\n"
+  "uniform float fNear;\n"
+  "uniform float fFar;\n"
+  "uniform vec2 vTan;\n"
+  "uniform float fRadius;\n"
+  "uniform float fIntensity;\n"
+  "float ViewDepth(vec2 vUV) {\n"
+  "  float fD = texture2D(texDepth, vUV).r;\n"
+  "  return (2.0 * fNear * fFar) / (fFar + fNear - (2.0 * fD - 1.0) * (fFar - fNear));\n"
+  "}\n"
+  "vec3 ViewPos(vec2 vUV) {\n"
+  "  float fZ = ViewDepth(vUV);\n"
+  "  return vec3((vUV.x * 2.0 - 1.0) * vTan.x * fZ, (vUV.y * 2.0 - 1.0) * vTan.y * fZ, -fZ);\n"
+  "}\n"
+  "void main() {\n"
+  "  vec2 vUV = gl_TexCoord[0].st;\n"
+  "  vec3 vP = ViewPos(vUV);\n"
+  "  float fZ = -vP.z;\n"
+  // Anything on the far plane is sky: there is no surface there to occlude.
+  "  if (fZ >= fFar * 0.99) { gl_FragColor = vec4(1.0); return; }\n"
+  "  vec3 vN = normalize(cross(dFdx(vP), dFdy(vP)));\n"
+  "  float fAngle = fract(sin(dot(vUV, vec2(12.9898, 78.233))) * 43758.5453) * 6.2831853;\n"
+  // A view-space offset of fRadius at depth fZ spans this much of the 0..1 texture.
+  "  vec2 vScale = vec2(fRadius / max(vTan.x * fZ, 0.0001),\n"
+  "                     fRadius / max(vTan.y * fZ, 0.0001)) * 0.5;\n"
+  "  float fOcclusion = 0.0;\n"
+  "  for (int i = 0; i < 12; i++) {\n"
+  "    float fT = (float(i) + 0.5) / 12.0;\n"
+  "    float fA = fAngle + fT * 18.8495559;\n"
+  "    vec2 vSampleUV = vUV + vec2(cos(fA), sin(fA)) * fT * vScale;\n"
+  "    vec3 vDiff = ViewPos(vSampleUV) - vP;\n"
+  "    float fLen = length(vDiff);\n"
+  "    if (fLen > 0.0001) {\n"
+  "      float fFacing = max(dot(vN, vDiff / fLen), 0.0);\n"
+  // Falls off with distance so a wall across the room does not shade the floor under your feet.
+  "      fOcclusion += max(fFacing - 0.02, 0.0) * (fRadius / (fRadius + fLen));\n"
+  "    }\n"
+  "  }\n"
+  "  float fAO = clamp(1.0 - (fOcclusion / 12.0) * fIntensity, 0.0, 1.0);\n"
+  "  gl_FragColor = vec4(fAO, fAO, fAO, 1.0);\n"
   "}\n";
 
 // Isolates the part of the image bright enough to bleed, with a soft knee so the bloom fades in
@@ -141,15 +207,19 @@ static const char *_strCompositeShader =
   "#version 110\n"
   "uniform sampler2D texScene;\n"
   "uniform sampler2D texBloom;\n"
+  "uniform sampler2D texAO;\n"
   "uniform float fExposure;\n"
   "uniform float fBloomIntensity;\n"
   "uniform float fSaturation;\n"
   "uniform int iTonemap;\n"
+  "uniform int iUseAO;\n"
   "vec3 Aces(vec3 v) {\n"
   "  return clamp((v * (2.51 * v + 0.03)) / (v * (2.43 * v + 0.59) + 0.14), 0.0, 1.0);\n"
   "}\n"
   "void main() {\n"
   "  vec3 vColor = texture2D(texScene, gl_TexCoord[0].st).rgb;\n"
+  // Occlusion darkens the scene before the highlights bleed, so an unlit corner does not glow.
+  "  if (iUseAO != 0) vColor *= texture2D(texAO, gl_TexCoord[0].st).r;\n"
   "  vColor += texture2D(texBloom, gl_TexCoord[0].st).rgb * fBloomIntensity;\n"
   "  vColor *= fExposure;\n"
   "  if (iTonemap != 0) vColor = Aces(vColor);\n"
@@ -297,6 +367,30 @@ static void ReleaseTexture(GLuint &uiTexture)
 }
 
 
+// Same as CreateTarget, but for the depth buffer. The base internal format is used rather than a
+// sized one so the driver picks whatever precision its depth buffer already has; a driver with no
+// depth-texture support fails here and switches occlusion off for the session.
+static BOOL CreateDepthTarget(GLuint &uiTexture, PIX pixW, PIX pixH)
+{
+  if (uiTexture == 0) pglGenTextures(1, &uiTexture);
+  pglBindTexture(GL_TEXTURE_2D, uiTexture);
+  pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  pglTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  // Asked for without the engine's error check, because a refusal here is expected and handled.
+  pglTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, pixW, pixH, 0,
+                GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+  if (pglGetError() != 0) {
+    CPrintF(TRANS("Post-processing: no depth texture support, ambient occlusion disabled.\n"));
+    ReleaseTexture(uiTexture);
+    return FALSE;
+  }
+  return TRUE;
+}
+
+
 void ShutdownPostProcessing(void)
 {
   if (_iPostState == 1) {
@@ -305,14 +399,20 @@ void ShutdownPostProcessing(void)
       if (_uiBlurProgram      != 0) pDeleteProgram(_uiBlurProgram);
       if (_uiCompositeProgram != 0) pDeleteProgram(_uiCompositeProgram);
       if (_uiFxaaProgram      != 0) pDeleteProgram(_uiFxaaProgram);
+      if (_uiSsaoProgram      != 0) pDeleteProgram(_uiSsaoProgram);
     }
     ReleaseTexture(_uiSceneTexture);
     ReleaseTexture(_uiWorkTexture);
     ReleaseTexture(_uiBloomA);
     ReleaseTexture(_uiBloomB);
+    ReleaseTexture(_uiDepthTexture);
+    ReleaseTexture(_uiAoA);
+    ReleaseTexture(_uiAoB);
   }
 
   _uiBrightProgram = _uiBlurProgram = _uiCompositeProgram = _uiFxaaProgram = 0;
+  _uiSsaoProgram = 0;
+  _bDepthUsable = TRUE;
   _pixWidth = _pixHeight = 0;
   _iPostState = -1;
 }
@@ -335,6 +435,10 @@ static BOOL EnsureReady(PIX pixW, PIX pixH)
     _uiCompositeProgram = BuildProgram(_strCompositeShader, "composite");
     _uiFxaaProgram      = BuildProgram(_strFxaaShader,      "antialias");
 
+    // Occlusion is optional: if its shader will not build, the rest of the chain still runs.
+    _uiSsaoProgram = BuildProgram(_strSsaoShader, "ambient occlusion");
+    if (_uiSsaoProgram == 0) _bDepthUsable = FALSE;
+
     if (_uiBrightProgram == 0 || _uiBlurProgram == 0 || _uiCompositeProgram == 0 || _uiFxaaProgram == 0) {
       _iPostState = 1;        // so Shutdown releases whatever did build
       ShutdownPostProcessing();
@@ -351,6 +455,12 @@ static BOOL EnsureReady(PIX pixW, PIX pixH)
     CreateTarget(_uiWorkTexture,  pixW, pixH);
     CreateTarget(_uiBloomA, pixW / 2, pixH / 2);
     CreateTarget(_uiBloomB, pixW / 2, pixH / 2);
+
+    if (_bDepthUsable) {
+      CreateTarget(_uiAoA, pixW / 2, pixH / 2);
+      CreateTarget(_uiAoB, pixW / 2, pixH / 2);
+      _bDepthUsable = CreateDepthTarget(_uiDepthTexture, pixW, pixH);
+    }
     _pixWidth  = pixW;
     _pixHeight = pixH;
   }
@@ -434,6 +544,44 @@ void PostProcessFrame(void)
   const PIX pixHalfH = pixH / 2;
   const BOOL bBloom = gfx_fBloomIntensity > 0.001f;
 
+  // Occlusion needs the depth buffer and the projection the scene was drawn with. A frame that
+  // never set a perspective frustum -- a menu with no world behind it -- has neither.
+  const BOOL bAO = gfx_bSSAO && _bDepthUsable && _bPostSceneFrustumValid
+                && _uiSsaoProgram != 0 && _fPostSceneFar > _fPostSceneNear;
+
+  if (bAO) {
+    gfx_fSSAORadius    = Clamp(gfx_fSSAORadius,    0.05f, 10.0f);
+    gfx_fSSAOIntensity = Clamp(gfx_fSSAOIntensity, 0.0f,  4.0f);
+
+    CaptureInto(_uiDepthTexture, pixW, pixH);
+
+    // Occlusion is resolved at half resolution and blurred; the spiral kernel is noisy by design.
+    pglViewport(0, 0, pixHalfW, pixHalfH);
+
+    pUseProgram(_uiSsaoProgram);
+    SetSampler(_uiSsaoProgram, "texDepth", 0, _uiDepthTexture);
+    pUniform1f(pGetUniformLocation(_uiSsaoProgram, "fNear"), _fPostSceneNear);
+    pUniform1f(pGetUniformLocation(_uiSsaoProgram, "fFar"), _fPostSceneFar);
+    pUniform2f(pGetUniformLocation(_uiSsaoProgram, "vTan"), _fPostSceneTanX, _fPostSceneTanY);
+    pUniform1f(pGetUniformLocation(_uiSsaoProgram, "fRadius"), gfx_fSSAORadius);
+    pUniform1f(pGetUniformLocation(_uiSsaoProgram, "fIntensity"), gfx_fSSAOIntensity);
+    DrawFullScreenQuad();
+    CaptureInto(_uiAoA, pixHalfW, pixHalfH);
+
+    pUseProgram(_uiBlurProgram);
+    SetSampler(_uiBlurProgram, "texSource", 0, _uiAoA);
+    pUniform2f(pGetUniformLocation(_uiBlurProgram, "vDirection"), 1.0f / pixHalfW, 0.0f);
+    DrawFullScreenQuad();
+    CaptureInto(_uiAoB, pixHalfW, pixHalfH);
+
+    SetSampler(_uiBlurProgram, "texSource", 0, _uiAoB);
+    pUniform2f(pGetUniformLocation(_uiBlurProgram, "vDirection"), 0.0f, 1.0f / pixHalfH);
+    DrawFullScreenQuad();
+    CaptureInto(_uiAoA, pixHalfW, pixHalfH);
+
+    pglViewport(0, 0, pixW, pixH);
+  }
+
   if (bBloom) {
     // Bright pass and blur run at half resolution, in the bottom-left corner of the back buffer.
     pglViewport(0, 0, pixHalfW, pixHalfH);
@@ -463,6 +611,8 @@ void PostProcessFrame(void)
   // With bloom off the second sampler still needs something bound; the unblurred scene is
   // harmless because its intensity is zero.
   SetSampler(_uiCompositeProgram, "texBloom", 1, bBloom ? _uiBloomA : _uiSceneTexture);
+  SetSampler(_uiCompositeProgram, "texAO", 2, bAO ? _uiAoA : _uiSceneTexture);
+  pUniform1i(pGetUniformLocation(_uiCompositeProgram, "iUseAO"), bAO ? 1 : 0);
   pUniform1f(pGetUniformLocation(_uiCompositeProgram, "fExposure"), gfx_fExposure);
   pUniform1f(pGetUniformLocation(_uiCompositeProgram, "fBloomIntensity"),
              bBloom ? gfx_fBloomIntensity : 0.0f);
@@ -482,11 +632,17 @@ void PostProcessFrame(void)
 
   // Back to fixed function, and leave the unit the rest of the engine assumes is active.
   pUseProgram(0);
+  gfxSetTextureUnit(2);
+  pglBindTexture(GL_TEXTURE_2D, 0);
   gfxSetTextureUnit(1);
   pglBindTexture(GL_TEXTURE_2D, 0);
   gfxSetTextureUnit(0);
   pglBindTexture(GL_TEXTURE_2D, 0);
   gfxEnableDepthTest();
   gfxEnableDepthWrite();
+
+  // Consumed. The next frame's world render sets it again; a frame that draws no world leaves it
+  // clear, and occlusion correctly sits that frame out rather than reusing a stale projection.
+  _bPostSceneFrustumValid = FALSE;
   OGL_CHECKERROR;
 }

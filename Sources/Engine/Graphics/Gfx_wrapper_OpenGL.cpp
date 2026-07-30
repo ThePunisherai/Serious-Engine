@@ -900,6 +900,16 @@ static void ogl_SetFrustum( const FLOAT fLeft, const FLOAT fRight,
   // check API
   ASSERT( _pGfx->gl_eCurrentAPI==GAT_OGL);
 
+  // Remember the scene's projection for the post-processing stage. It cannot read GFX_fLast*
+  // because ogl_SetOrtho writes those too, and the 2D overlay is drawn after the world -- by the
+  // time the frame is finished they describe the overlay, not the scene. Recorded before the
+  // cache check below, so an unchanged frustum still refreshes it.
+  _fPostSceneNear = Abs( fNear);
+  _fPostSceneFar  = Abs( fFar);
+  _fPostSceneTanX = Abs( fRight-fLeft) / (2.0f * Max( Abs(fNear), 0.0001f));
+  _fPostSceneTanY = Abs( fTop-fBottom) / (2.0f * Max( Abs(fNear), 0.0001f));
+  _bPostSceneFrustumValid = TRUE;
+
   // cached?
   if( GFX_fLastL==-fLeft  && GFX_fLastT==-fTop    && GFX_fLastN==-fNear
    && GFX_fLastR==-fRight && GFX_fLastB==-fBottom && GFX_fLastF==-fFar && gap_bOptimizeStateChanges) return;
