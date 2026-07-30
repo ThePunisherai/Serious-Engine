@@ -24,14 +24,18 @@ This is the source code for Serious Engine v.1.10, including the following proje
 * `libogg`, `libvorbis` Third party libraries used for playing OGG-encoded ingame music (see http://www.vorbis.com/ for more information)
 * `GameStudio` **GameStudio Engine** — a .NET 10 asset toolchain: archive browser, texture decoder, PBR modernization pipeline, Unreal Engine 5 exporter and MCP server (see [`Sources/GameStudio/README.md`](Sources/GameStudio/README.md))
 
-These have been modified to run correctly under the recent version of Windows. (Tested: Win7 x64, Win8 x64, Win8.1 x64)
+These have been modified to run correctly under recent versions of Windows. (Originally tested on Win7 x64, Win8 x64 and Win8.1 x64; the toolset has since been retargeted to VS2022, which has not been re-tested against those releases.)
 
 Building
 --------
 
-To build Serious Engine 1, you'll need Visual Studio 2013 or 2015, Professional or Community edition ( https://www.visualstudio.com/post-download-vs?sku=community ).
+To build Serious Engine 1, you'll need Visual Studio 2022, any edition including Community ( https://visualstudio.microsoft.com/downloads/ ), with the *Desktop development with C++* workload.
+
+All projects target the `v143` toolset. They used to target `v120` — Visual Studio 2013 — which current Visual Studio cannot even install, so every project had to be retargeted by hand before it would open. `v143` still supports the x86 inline assembly this codebase is full of, so the `__asm` blocks are untouched and the build stays Win32.
 
 Do not use spaces in the path to the solution.
+
+The .NET side (`Sources/GameStudio`) builds separately with the .NET 10 SDK: `dotnet build Sources/GameStudio/GameStudio.slnx`. Both are built by CI — see [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
 Once you've installed Visual Studio and (optionally) DirectX8 SDK, you can build the engine solution (`/Sources/All.sln`). Press F7 or Build -> Build solution. The libraries and executables will be put into `\Bin\` directory (or `\Bin\Debug\` if you are using the Debug configuration).
 

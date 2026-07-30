@@ -43,8 +43,13 @@ jobs:
 
       - uses: microsoft/setup-msbuild@v2
 
+      # Built through the solution rather than as a bare project, for two reasons that both bite.
+      # $(SolutionDir) is what the Engine project uses to find Tools.Win32 (bison, flex) and Bin
+      # (ecc) -- building the .vcxproj alone points it at Sources/Engine and none of them resolve.
+      # And the solution declares Engine's dependency on Ecc, so the entity class compiler gets
+      # built before the code generation step that needs it.
       - name: Build Engine
         run: >
-          msbuild Sources/Engine/Engine.vcxproj
+          msbuild Sources/All.sln /t:Engine
           /p:Configuration=Release /p:Platform=Win32
           /m /verbosity:minimal
