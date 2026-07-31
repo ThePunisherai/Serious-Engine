@@ -427,6 +427,14 @@ public sealed class ToolCatalog
             ["maxScale"] = settings.MaxScale,
             ["note"] = "World scale is unchanged: mex size is preserved and only the stored pixel "
                      + "density rises, so textures look sharper at the same size on a surface.",
+            // Verified in ExpandFilePath_read (Sources/Engine/Base/Stream.cpp): with the default
+            // fil_bPreferZips=0 the engine tries a loose file in the game folder before it looks
+            // inside any .gro, so this output is a drop-in and needs no repacking.
+            ["howToInstall"] = "Copy the contents of this directory into the game folder, keeping "
+                             + "the layout. The engine reads a loose file before the copy inside a "
+                             + ".gro, so the upgraded textures win. Put them in a mod folder "
+                             + "instead to keep the original install untouched; set "
+                             + "fil_bPreferZips=1 to fall back to the archived originals.",
             ["largestGains"] = new JsonArray([.. best.Select(t => (JsonNode)new JsonObject
             {
                 ["name"] = t.Name,

@@ -146,6 +146,21 @@ already at its world size is left alone rather than blown up for nothing.
 This is what the raised dimension cap in the engine is for: without it, anything past 1024 would be
 rejected on load.
 
+### Getting the result into the game
+
+No repacking step, and no `.gro` writer: copy the output directory into the game folder, keeping
+the layout, and the engine picks the upgraded textures up on its own.
+
+That works because of `ExpandFilePath_read` in `Sources/Engine/Base/Stream.cpp`. With the default
+`fil_bPreferZips = 0`, the engine tries a loose file in the game folder *before* it looks inside
+any `.gro`, so an upgraded `Models/Computer/Floor.tex` on disk shadows the one in `SE1_10.gro`
+without touching the archive.
+
+Two consequences worth knowing. Dropping the tree into a mod folder works the same way and keeps
+the original install pristine — a mod's own directory is searched before the base game's. And
+`fil_bPreferZips=1` flips the order, which is the quickest way back to the shipped artwork if an
+upgrade looks wrong.
+
 The writer is checked against `CTextureData::Read_t` in `Sources/Engine/Graphics/Texture.cpp`
 rather than against this repository's own decoder, which would be circular. The engine reads its
 version-4 `TDAT` as flags, mex width, mex height, fine mip levels, first mip level, frame count —
